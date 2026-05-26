@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+.env
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Lokalne kopie zapasowe aplikacji (nie dane użytkownika)
+*.json.bak
+
+# IDE
+.idea/
+.vscode/
+*.swp
