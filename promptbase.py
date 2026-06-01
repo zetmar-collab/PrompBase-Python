@@ -47,8 +47,17 @@ from urllib.error import HTTPError, URLError
 
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.4"
+APP_VERSION = "2.5"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
+APP_AUTHOR_URL = "https://github.com/zetmar-collab"
+APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
+APP_HELP_URL = "https://github.com/zetmar-collab/PrompBase-Python#readme"
+DEFAULT_CHECKLIST = {
+    "selected": False,
+    "copied": False,
+    "opened_ai": False,
+    "added_prompt": False,
+}
 CLOUD_SUBDIR = "PrompBase"
 PROMPT_HISTORY_MAX = 5
 PWA_STORAGE_KEY = "promptLibrary"
@@ -57,6 +66,7 @@ N8N_HTTP_TIMEOUT = 30
 APP_AUTHOR = "Marek Zettel"
 APP_DIR = Path(__file__).resolve().parent
 ASSETS_DIR = APP_DIR / "assets"
+LANDING_PAGE_PATH = APP_DIR / "landing" / "index.html"
 
 THEMES = {
     "jasny": {
@@ -77,6 +87,16 @@ THEMES = {
         "accent": "#8d7cff",
         "select": "#2d3350",
         "field": "#151923",
+        "search_hit": "#4a4520",
+    },
+    "grafit": {
+        "bg": "#1a1c22",
+        "surface": "#242830",
+        "text": "#eceff4",
+        "muted": "#9aa3b2",
+        "accent": "#7c8cff",
+        "select": "#323848",
+        "field": "#1e2129",
         "search_hit": "#4a4520",
     },
 }
@@ -506,6 +526,8 @@ class PromptStore:
         self.n8n_url = ""
         self.theme = "jasny"
         self.cloud_folders: dict[str, str] = {"google_drive": "", "onedrive": ""}
+        self.onboarding_done = False
+        self.checklist: dict[str, bool] = dict(DEFAULT_CHECKLIST)
         self.load()
 
     def load(self) -> None:
@@ -518,15 +540,24 @@ class PromptStore:
             self.prompts = []
             return
 
-        if isinstance(data, list):
+        legacy_list = isinstance(data, list)
+        if legacy_list:
             raw_prompts = data
             self.n8n_url = ""
             stored_cloud: dict = {}
+            self.onboarding_done = bool(data)
         else:
             raw_prompts = data.get("prompts", [])
             self.n8n_url = data.get("n8n_url", "")
             self.theme = data.get("theme", "jasny")
             stored_cloud = data.get("cloud_folders", {}) or {}
+            self.onboarding_done = bool(data.get("onboarding_done", False))
+            merged = dict(DEFAULT_CHECKLIST)
+            if isinstance(data.get("checklist"), dict):
+                merged.update({k: bool(v) for k, v in data["checklist"].items() if k in merged})
+            self.checklist = merged
+            if raw_prompts and "onboarding_done" not in data:
+                self.onboarding_done = True
         if self.theme not in THEMES:
             self.theme = "jasny"
 
@@ -549,8 +580,19 @@ class PromptStore:
             "n8n_url": self.n8n_url,
             "theme": self.theme,
             "cloud_folders": self.cloud_folders,
+            "onboarding_done": self.onboarding_done,
+            "checklist": self.checklist,
             "prompts": [prompt.to_dict() for prompt in self.prompts],
         }
+
+    def mark_checklist(self, key: str) -> None:
+        if key in self.checklist and not self.checklist[key]:
+            self.checklist[key] = True
+            self.save()
+
+    def complete_onboarding(self) -> None:
+        self.onboarding_done = True
+        self.save()
 
     def to_pwa_library_json(self) -> str:
         """JSON tablicy promptów — format localStorage promptLibrary w PWA."""
@@ -583,34 +625,23 @@ class PromptStore:
                 pass
         self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    def sample_data(self) -> None:
-        if self.prompts:
+    def sample_data(self, *, force: bool = False) -> None:
+        if self.prompts and not force:
             return
         samples = [
             Prompt(
-                name="Redaktor Bloga Technicznego",
+                name="Post LinkedIn — marketing",
                 status="praca",
                 format="tekst",
                 model="GPT-5.5",
-                zastosowanie="pisanie",
+                zastosowanie="marketing",
+                tags="social, polski",
                 content=(
-                    "Jesteś doświadczonym redaktorem bloga technologicznego. "
-                    "Pisz przystępnym językiem dla niespecjalistów.\n\n"
-                    "Temat artykułu: [TEMAT]\nDługość: [LICZBA] słów\nTon: [TON]"
+                    "Napisz post na LinkedIn po polsku. Ton: ekspercki, ale przystępny.\n\n"
+                    "Temat: [TEMAT]\nGrupa docelowa: [ODBIORCA]\nCall to action: [CTA]"
                 ),
-                comment='Dobry do serii "Podstawy AI"',
-            ),
-            Prompt(
-                name="Korektor Ortografii PL",
-                status="uniwersalne",
-                format="tekst",
-                model="Claude Sonnet 4.6",
-                zastosowanie="pisanie",
-                content=(
-                    "Popraw błędy ortograficzne, interpunkcyjne i stylistyczne w tekście. "
-                    "Zachowaj oryginalny styl i sens.\n\nTekst do korekty:\n[TEKST]"
-                ),
-                comment="Claude Sonnet 4.6 radzi sobie z tym bardzo dobrze",
+                comment="Przykład dla marketerów — użyj „Kopiuj i użyj w AI”",
+                pinned=True,
             ),
             Prompt(
                 name="Analiza kodu Python",
@@ -618,11 +649,38 @@ class PromptStore:
                 format="kod",
                 model="Claude Opus 4.7",
                 zastosowanie="kodowanie",
+                tags="kod",
                 content=(
                     "Jesteś senior developerem Python. Przeanalizuj poniższy kod pod kątem "
                     "błędów, wydajności, refaktoryzacji, PEP8 i bezpieczeństwa.\n\n```python\n[KOD]\n```"
                 ),
-                comment="Używać przy review skryptów",
+                comment="Dla programistów — otwórz Claude po skopiowaniu",
+            ),
+            Prompt(
+                name="n8n — opis zadania do workflow",
+                status="uniwersalne",
+                format="tekst",
+                model="GPT-5.5 Mini",
+                zastosowanie="automatyzacja",
+                tags="n8n, szablon",
+                content=(
+                    "Przygotuj zwięzły opis kroku automatyzacji n8n.\n\n"
+                    "Cel workflow: [CEL]\nWejście: [WEJSCIE]\nWyjście: [WYJSCIE]"
+                ),
+                comment="Wyślij do n8n z menu Narzędzia po skonfigurowaniu webhooka",
+            ),
+            Prompt(
+                name="Korektor ortografii PL",
+                status="uniwersalne",
+                format="tekst",
+                model="Claude Sonnet 4.6",
+                zastosowanie="pisanie",
+                tags="polski",
+                content=(
+                    "Popraw błędy ortograficzne, interpunkcyjne i stylistyczne w tekście. "
+                    "Zachowaj oryginalny styl i sens.\n\nTekst do korekty:\n[TEKST]"
+                ),
+                comment="Uniwersalny szablon — dobre na start",
             ),
         ]
         for index, prompt in enumerate(samples):
@@ -853,6 +911,93 @@ class FillVariablesDialog(Toplevel):
             )
             return
         self.filled_content = fill_placeholders(self._source_content, values)
+        self.destroy()
+
+
+ONBOARDING_STEPS = [
+    (
+        "Witaj w PrompBase",
+        "Twoja biblioteka promptów AI — lokalnie na dysku, bez konta i bez chmury.\n\n"
+        "Za chwilę skopiujesz gotowy przykład i wkleisz go do ChatGPT lub Claude. "
+        "To zajmie około 30 sekund.",
+    ),
+    (
+        "Krok 1: wybierz prompt",
+        "Po lewej zobaczysz przykłady (marketing, kod, n8n).\n\n"
+        "Kliknij wiersz na liście — treść pojawi się w podglądzie po prawej.",
+    ),
+    (
+        "Krok 2: Kopiuj i użyj w AI",
+        "Użyj dużego przycisku „Kopiuj i użyj w AI”.\n\n"
+        "Aplikacja skopiuje treść (z uzupełnieniem pól [TEMAT] jeśli trzeba) "
+        "i otworzy sugerowaną platformę w przeglądarce.",
+    ),
+    (
+        "Gotowe — Twoja kolej",
+        "Import CSV i eksport są w menu Plik.\n"
+        "Pomoc: klawisz ? lub menu Pomoc.\n\n"
+        "Dodaj własny prompt przyciskiem „+ Nowy Prompt”.",
+    ),
+]
+
+
+class OnboardingDialog(Toplevel):
+    def __init__(self, parent: Tk, *, on_finish=None):
+        super().__init__(parent)
+        self.on_finish = on_finish
+        self.step_index = 0
+        self.title("PrompBase — szybki start")
+        self.geometry("560x340")
+        self.minsize(480, 300)
+        self.resizable(False, False)
+
+        body = ttk.Frame(self, padding=20)
+        body.pack(fill=BOTH, expand=True)
+        body.columnconfigure(0, weight=1)
+
+        self.step_title = ttk.Label(body, text="", font=("Segoe UI", 14, "bold"))
+        self.step_title.grid(row=0, column=0, sticky=W, pady=(0, 10))
+
+        self.step_body = ttk.Label(body, text="", wraplength=500, justify=LEFT)
+        self.step_body.grid(row=1, column=0, sticky="nsew")
+        body.rowconfigure(1, weight=1)
+
+        nav = ttk.Frame(body)
+        nav.grid(row=2, column=0, sticky="ew", pady=(16, 0))
+        self.back_btn = ttk.Button(nav, text="Wstecz", command=self.prev_step)
+        self.back_btn.pack(side=LEFT)
+        self.next_btn = ttk.Button(nav, text="Dalej", style="Accent.TButton", command=self.next_step)
+        self.next_btn.pack(side=RIGHT)
+
+        self._render_step()
+        self.bind("<Escape>", lambda _event: self.destroy())
+        self.transient(parent)
+        self.grab_set()
+        self.protocol("WM_DELETE_WINDOW", self._finish)
+
+    def _render_step(self) -> None:
+        title, text = ONBOARDING_STEPS[self.step_index]
+        self.step_title.configure(text=title)
+        self.step_body.configure(text=text)
+        self.back_btn.configure(state="normal" if self.step_index > 0 else "disabled")
+        last = self.step_index >= len(ONBOARDING_STEPS) - 1
+        self.next_btn.configure(text="Zaczynam" if last else "Dalej")
+
+    def prev_step(self) -> None:
+        if self.step_index > 0:
+            self.step_index -= 1
+            self._render_step()
+
+    def next_step(self) -> None:
+        if self.step_index < len(ONBOARDING_STEPS) - 1:
+            self.step_index += 1
+            self._render_step()
+        else:
+            self._finish()
+
+    def _finish(self) -> None:
+        if self.on_finish:
+            self.on_finish()
         self.destroy()
 
 
@@ -1262,6 +1407,15 @@ class PrompBaseApp:
         if not self.store.prompts:
             self.store.sample_data()
         self.refresh_all()
+        if self.store.prompts and not self.store.checklist.get("selected"):
+            first_id = self.store.prompts[0].id
+            self.tree.selection_set(first_id)
+            self.selected_id = first_id
+            self.update_detail()
+            self.store.mark_checklist("selected")
+
+        if not self.store.onboarding_done:
+            self.root.after(200, self.show_onboarding)
 
     def _set_window_icon(self) -> None:
         ico_path = ASSETS_DIR / "promptbase.ico"
@@ -1305,6 +1459,7 @@ class PrompBaseApp:
         self.style.configure("Stat.TLabel", background=colors["bg"], foreground=colors["text"], font=("Segoe UI", 10, "bold"))
         self.style.configure("Muted.TLabel", background=colors["bg"], foreground=colors["muted"])
         self.style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"))
+        self.style.configure("Primary.TButton", font=("Segoe UI", 11, "bold"), padding=(10, 6))
         self.style.configure("Treeview", background=colors["surface"], foreground=colors["text"], fieldbackground=colors["surface"])
         self.style.configure("Treeview.Heading", background=colors["surface"], foreground=colors["text"])
         self.style.map("Treeview", background=[("selected", colors["select"])], foreground=[("selected", colors["text"])])
@@ -1374,10 +1529,15 @@ class PrompBaseApp:
         view_menu = Menu(menu, tearoff=False)
         view_menu.add_radiobutton(label="Tryb jasny", variable=self.theme_var, value="jasny", command=self.apply_theme)
         view_menu.add_radiobutton(label="Tryb ciemny", variable=self.theme_var, value="ciemny", command=self.apply_theme)
+        view_menu.add_radiobutton(label="Motyw grafit", variable=self.theme_var, value="grafit", command=self.apply_theme)
         menu.add_cascade(label="Widok", menu=view_menu)
 
         help_menu = Menu(menu, tearoff=False)
+        help_menu.add_command(label="Przewodnik startowy", command=self.show_onboarding)
         help_menu.add_command(label="Pomoc i skróty", accelerator="?", command=self.show_help)
+        help_menu.add_separator()
+        help_menu.add_command(label="Strona produktu", command=self.open_product_page)
+        help_menu.add_command(label="Pobierz najnowszą wersję", command=self.open_download_page)
         menu.add_cascade(label="Pomoc", menu=help_menu)
         self.root.config(menu=menu)
 
@@ -1401,20 +1561,8 @@ class PrompBaseApp:
             row=0, column=2, rowspan=2, padx=(4, 8)
         )
         ttk.Button(header, text="+ Nowy Prompt", style="Accent.TButton", command=self.new_prompt).grid(
-            row=0, column=3, rowspan=2, padx=4
+            row=0, column=3, rowspan=3, padx=4
         )
-        ttk.Button(header, text="Import CSV", command=self.import_csv).grid(row=0, column=4, rowspan=2, padx=4)
-        ttk.Button(header, text="Eksport CSV", command=self.export_csv).grid(row=0, column=5, rowspan=2, padx=4)
-
-        ai_bar = ttk.Frame(header)
-        ai_bar.grid(row=3, column=0, columnspan=6, sticky=W, pady=(8, 0))
-        ttk.Label(ai_bar, text="Otwórz AI:", style="Muted.TLabel").pack(side=LEFT, padx=(0, 6))
-        for platform_name, _url in AI_PLATFORMS:
-            ttk.Button(
-                ai_bar,
-                text=platform_name,
-                command=lambda name=platform_name: self.open_ai_platform(name, copy_prompt=True),
-            ).pack(side=LEFT, padx=3)
 
         sidebar = ttk.LabelFrame(main, text="Filtry", padding=10)
         sidebar.grid(row=1, column=0, sticky="nsw", padx=(0, 12))
@@ -1440,8 +1588,22 @@ class PrompBaseApp:
 
         ttk.Button(sidebar, text="Wyczyść filtry", command=self.clear_filters).grid(row=8, column=0, sticky="ew")
 
+        self.checklist_frame = ttk.LabelFrame(sidebar, text="Pierwsze kroki", padding=8)
+        self.checklist_frame.grid(row=9, column=0, sticky="ew", pady=(10, 0))
+        self.checklist_labels: dict[str, ttk.Label] = {}
+        checklist_steps = (
+            ("selected", "1. Wybierz prompt z listy"),
+            ("copied", "2. Skopiuj treść do schowka"),
+            ("opened_ai", "3. Otwórz ChatGPT / Claude"),
+            ("added_prompt", "4. Dodaj własny prompt"),
+        )
+        for idx, (key, label) in enumerate(checklist_steps):
+            row_label = ttk.Label(self.checklist_frame, text=f"○ {label}", style="Muted.TLabel", wraplength=200)
+            row_label.grid(row=idx, column=0, sticky=W, pady=1)
+            self.checklist_labels[key] = row_label
+
         import_frame = ttk.LabelFrame(sidebar, text="Import pliku", padding=8)
-        import_frame.grid(row=9, column=0, sticky="ew", pady=(10, 0))
+        import_frame.grid(row=10, column=0, sticky="ew", pady=(10, 0))
         ttk.Label(
             import_frame,
             text="Kliknij, aby wczytać\nCSV lub JSON",
@@ -1453,13 +1615,13 @@ class PrompBaseApp:
         for child in import_frame.winfo_children():
             child.bind("<Button-1>", lambda _e: self.quick_import_file())
 
-        ttk.Separator(sidebar).grid(row=10, column=0, sticky="ew", pady=12)
-        ttk.Label(sidebar, text="Przypięte", style="Stat.TLabel").grid(row=11, column=0, sticky=W)
+        ttk.Separator(sidebar).grid(row=11, column=0, sticky="ew", pady=12)
+        ttk.Label(sidebar, text="Przypięte", style="Stat.TLabel").grid(row=12, column=0, sticky=W)
         self.pinned_list = Listbox(sidebar, height=8, activestyle="dotbox")
-        self.pinned_list.grid(row=12, column=0, sticky="nsew", pady=(4, 8))
+        self.pinned_list.grid(row=13, column=0, sticky="nsew", pady=(4, 8))
         self.pinned_list.bind("<Double-Button-1>", self.open_pinned)
-        ttk.Button(sidebar, text="Otwórz przypięty", command=self.open_pinned).grid(row=13, column=0, sticky="ew")
-        sidebar.rowconfigure(12, weight=1)
+        ttk.Button(sidebar, text="Otwórz przypięty", command=self.open_pinned).grid(row=14, column=0, sticky="ew")
+        sidebar.rowconfigure(13, weight=1)
 
         content = ttk.Frame(main)
         content.grid(row=1, column=1, sticky="nsew")
@@ -1517,9 +1679,36 @@ class PrompBaseApp:
         self.detail_text.grid(row=5, column=0, sticky="nsew")
         self.detail_text.configure(state="disabled")
         self.register_text_widget(self.detail_text)
-        self.register_text_widget(self.pinned_list)
-        buttons = ttk.Frame(detail)
-        buttons.grid(row=6, column=0, sticky="ew", pady=(10, 0))
+
+        self.empty_state = ttk.Frame(detail)
+        self.empty_state.grid(row=5, column=0, sticky="nsew")
+        self.empty_state.grid_remove()
+        ttk.Label(
+            self.empty_state,
+            text="Biblioteka jest pusta.\nDodaj pierwszy prompt lub załaduj gotowe przykłady.",
+            justify=CENTER,
+            wraplength=320,
+        ).pack(pady=(24, 12))
+        empty_actions = ttk.Frame(self.empty_state)
+        empty_actions.pack()
+        ttk.Button(empty_actions, text="+ Nowy Prompt", style="Accent.TButton", command=self.new_prompt).pack(
+            side=LEFT, padx=4
+        )
+        ttk.Button(empty_actions, text="Załaduj przykłady", command=self.restore_sample_prompts).pack(side=LEFT, padx=4)
+
+        self.primary_row = ttk.Frame(detail)
+        self.primary_row.grid(row=6, column=0, sticky="ew", pady=(10, 0))
+        self.primary_row.columnconfigure(0, weight=1)
+        ttk.Button(
+            self.primary_row,
+            text="Kopiuj i użyj w AI",
+            style="Primary.TButton",
+            command=self.copy_and_use_ai,
+        ).grid(row=0, column=0, sticky="ew")
+
+        self.detail_actions = ttk.Frame(detail)
+        self.detail_actions.grid(row=7, column=0, sticky="ew", pady=(6, 0))
+        buttons = self.detail_actions
         for idx in range(7):
             buttons.columnconfigure(idx, weight=1)
         ttk.Button(buttons, text="Kopiuj", command=self.copy_selected).grid(row=0, column=0, sticky="ew", padx=2)
@@ -1530,8 +1719,9 @@ class PrompBaseApp:
         ttk.Button(buttons, text="n8n", command=self.send_selected_to_n8n).grid(row=0, column=5, sticky="ew", padx=2)
         ttk.Button(buttons, text="Usuń", command=self.delete_selected).grid(row=0, column=6, sticky="ew", padx=2)
 
-        ai_buttons = ttk.Frame(detail)
-        ai_buttons.grid(row=7, column=0, sticky="ew", pady=(6, 0))
+        self.ai_buttons = ttk.Frame(detail)
+        self.ai_buttons.grid(row=8, column=0, sticky="ew", pady=(6, 0))
+        ai_buttons = self.ai_buttons
         for idx in range(len(AI_PLATFORMS) + 1):
             ai_buttons.columnconfigure(idx, weight=1)
         ttk.Button(
@@ -1546,6 +1736,7 @@ class PrompBaseApp:
                 command=lambda name=platform_name: self.open_ai_platform(name, copy_prompt=True),
             ).grid(row=0, column=idx, sticky="ew", padx=2)
         split.add(detail, weight=2)
+        self.register_text_widget(self.pinned_list)
 
         self.status_bar = ttk.Label(self.root, text="", relief="sunken", anchor=W, padding=(8, 3))
         self.status_bar.pack(side=BOTTOM, fill=X)
@@ -1556,8 +1747,16 @@ class PrompBaseApp:
         self.model_combo.bind("<<ComboboxSelected>>", lambda _event: self.refresh_list())
         self.zastosowanie_combo.bind("<<ComboboxSelected>>", lambda _event: self.refresh_list())
         self.tag_combo.bind("<<ComboboxSelected>>", lambda _event: self.refresh_list())
-        self.tree.bind("<<TreeviewSelect>>", lambda _event: self.update_detail())
+        self.tree.bind("<<TreeviewSelect>>", self._on_tree_select)
         self.tree.bind("<Double-Button-1>", lambda _event: self.edit_selected())
+
+        self._update_checklist_ui()
+
+    def _on_tree_select(self, _event=None) -> None:
+        if self.tree.selection():
+            self.store.mark_checklist("selected")
+        self.update_detail()
+        self._update_checklist_ui()
 
     def _text_widget(self, parent):
         from tkinter import Text
@@ -1592,17 +1791,96 @@ class PrompBaseApp:
             custom.extend(tag_list_from_string(prompt.tags))
         return merge_model_options(TAGS_PRESET, custom)
 
-    def copy_content_with_variables(self, content: str) -> None:
+    def copy_content_with_variables(self, content: str) -> bool:
         placeholders = extract_placeholders(content)
         if placeholders:
             dialog = FillVariablesDialog(self.root, content, title="Uzupełnij zmienne przed kopiowaniem")
             self.root.wait_window(dialog)
             if not dialog.filled_content:
-                return
+                return False
             content = dialog.filled_content
         self.root.clipboard_clear()
         self.root.clipboard_append(content)
         self.root.update()
+        return True
+
+    def _clipboard_from_prompt(self, prompt: Prompt) -> bool:
+        return self.copy_content_with_variables(prompt.content)
+
+    def copy_and_use_ai(self) -> None:
+        prompt = self.selected_prompt()
+        if not prompt:
+            messagebox.showinfo(
+                APP_NAME,
+                "Wybierz prompt z listy po lewej, potem użyj „Kopiuj i użyj w AI”.",
+                parent=self.root,
+            )
+            return
+        if not self._clipboard_from_prompt(prompt):
+            return
+        self.store.mark_checklist("copied")
+        self._update_checklist_ui()
+        platform = suggest_ai_platform(prompt.model) or "ChatGPT"
+        self.open_ai_platform(platform, copy_prompt=False)
+        self.store.mark_checklist("opened_ai")
+        self._update_checklist_ui()
+        self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform}.")
+
+    def _update_checklist_ui(self) -> None:
+        if not hasattr(self, "checklist_labels"):
+            return
+        labels = {
+            "selected": "1. Wybierz prompt z listy",
+            "copied": "2. Skopiuj treść do schowka",
+            "opened_ai": "3. Otwórz ChatGPT / Claude",
+            "added_prompt": "4. Dodaj własny prompt",
+        }
+        done = self.store.checklist
+        all_done = all(done.get(key) for key in labels)
+        if hasattr(self, "checklist_frame"):
+            if all_done and self.store.onboarding_done:
+                self.checklist_frame.grid_remove()
+            else:
+                self.checklist_frame.grid()
+        for key, base in labels.items():
+            mark = "✓" if done.get(key) else "○"
+            self.checklist_labels[key].configure(text=f"{mark} {base}")
+
+    def show_onboarding(self) -> None:
+        def _done() -> None:
+            self.store.complete_onboarding()
+            self._update_checklist_ui()
+
+        OnboardingDialog(self.root, on_finish=_done)
+
+    def open_product_page(self) -> None:
+        if LANDING_PAGE_PATH.is_file():
+            webbrowser.open(LANDING_PAGE_PATH.resolve().as_uri())
+            self.set_status("Otwarto stronę produktu (landing).")
+        else:
+            webbrowser.open(APP_HELP_URL)
+            self.set_status("Otwarto dokumentację na GitHub.")
+
+    def open_download_page(self) -> None:
+        webbrowser.open(APP_RELEASE_URL)
+        self.set_status("Otwarto stronę pobrań.")
+
+    def restore_sample_prompts(self) -> None:
+        if self.store.prompts:
+            if not messagebox.askyesno(
+                APP_NAME,
+                "Zastąpić obecną bibliotekę przykładowymi promptami?\n"
+                "Obecne wpisy zostaną usunięte.",
+                parent=self.root,
+            ):
+                return
+        self.store.sample_data(force=True)
+        self.selected_id = self.store.prompts[0].id if self.store.prompts else None
+        self.refresh_all()
+        if self.selected_id:
+            self.tree.selection_set(self.selected_id)
+            self.update_detail()
+        self.set_status("Załadowano przykładowe prompty.")
 
     def _highlight_search_in_text(self, widget, query: str) -> None:
         widget.tag_delete("search_hit")
@@ -1647,12 +1925,15 @@ class PrompBaseApp:
                     f"Brak zaznaczonego promptu. Otwieram {platform_name} bez kopiowania treści.",
                     parent=self.root,
                 )
+            elif not self._clipboard_from_prompt(prompt):
+                return
             else:
-                self.root.clipboard_clear()
-                self.root.clipboard_append(prompt.content)
-                self.root.update()
+                self.store.mark_checklist("copied")
+                self._update_checklist_ui()
         webbrowser.open(url)
         if copy_prompt and prompt:
+            self.store.mark_checklist("opened_ai")
+            self._update_checklist_ui()
             self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform_name}.")
         else:
             self.set_status(f"Otwarto {platform_name} w przeglądarce.")
@@ -1782,11 +2063,28 @@ class PrompBaseApp:
         selection = self.tree.selection()
         self.selected_id = selection[0] if selection else None
         prompt = self.selected_prompt()
+        library_empty = not self.store.prompts
+        if library_empty:
+            self.empty_state.grid()
+            self.detail_text.grid_remove()
+            self.primary_row.grid_remove()
+            self.detail_actions.grid_remove()
+            self.ai_buttons.grid_remove()
+            self.detail_title.configure(text="Brak promptów")
+            self.detail_meta.configure(text="")
+            self.detail_comment.configure(text="")
+            return
+
+        self.empty_state.grid_remove()
+        self.detail_text.grid()
+        self.primary_row.grid()
+        self.detail_actions.grid()
+        self.ai_buttons.grid()
         self.detail_text.configure(state="normal")
         self.detail_text.delete("1.0", END)
         if not prompt:
-            self.detail_title.configure(text="Wybierz prompt")
-            self.detail_meta.configure(text="")
+            self.detail_title.configure(text="Wybierz prompt z listy")
+            self.detail_meta.configure(text="Kliknij wiersz po lewej lub użyj „Kopiuj i użyj w AI”.")
             self.detail_comment.configure(text="")
         else:
             self.detail_title.configure(text=prompt.name)
@@ -1820,6 +2118,8 @@ class PrompBaseApp:
         if dialog.result:
             self.store.prompts.insert(0, dialog.result)
             self.store.save()
+            self.store.mark_checklist("added_prompt")
+            self._update_checklist_ui()
             self.selected_id = dialog.result.id
             self.refresh_all()
             self.set_status("Prompt zapisany.")
@@ -2021,8 +2321,10 @@ class PrompBaseApp:
         prompt = self.selected_prompt()
         if not prompt:
             return
-        self.copy_content_with_variables(prompt.content)
-        self.set_status("Prompt skopiowany do schowka.")
+        if self.copy_content_with_variables(prompt.content):
+            self.store.mark_checklist("copied")
+            self._update_checklist_ui()
+            self.set_status("Prompt skopiowany do schowka.")
 
     def copy_selected_with_meta(self) -> None:
         prompt = self.selected_prompt()
@@ -2470,10 +2772,18 @@ class PrompBaseApp:
         return True
 
     def show_help(self) -> None:
+        landing_hint = (
+            f"\nStrona produktu: {LANDING_PAGE_PATH}\n" if LANDING_PAGE_PATH.is_file() else ""
+        )
         messagebox.showinfo(
             "PrompBase - pomoc",
             f"PrompBase v{APP_VERSION}\n"
-            f"Autor: {APP_AUTHOR}\n\n"
+            f"Autor: {APP_AUTHOR}\n"
+            f"Dokumentacja: {APP_HELP_URL}\n"
+            f"Pobierz: {APP_RELEASE_URL}"
+            f"{landing_hint}\n\n"
+            "Główna akcja: „Kopiuj i użyj w AI” — kopiuje prompt i otwiera platformę.\n"
+            "Przewodnik startowy: menu Pomoc.\n\n"
             "Skróty:\n"
             "N lub Ctrl+N - nowy prompt\n"
             "Ctrl+D - duplikuj prompt\n"
