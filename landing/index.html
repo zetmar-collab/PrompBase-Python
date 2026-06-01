@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PrompBase — lokalna biblioteka promptów AI dla Windows</title>
+  <meta name="description" content="Znajdź i wklej swój prompt do ChatGPT lub Claude w kilka sekund. Bez konta, bez chmury — dane na Twoim komputerze.">
+  <style>
+    :root {
+      --bg: #1a1c22;
+      --surface: #242830;
+      --text: #eceff4;
+      --muted: #9aa3b2;
+      --accent: #7c8cff;
+      --accent-hover: #9aa8ff;
+      --border: #323848;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
+    header { text-align: center; padding: 2.5rem 0 2rem; }
+    .badge {
+      display: inline-block;
+      font-size: 0.75rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0.35rem 0.85rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: clamp(1.75rem, 5vw, 2.5rem);
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+    .lead {
+      font-size: 1.125rem;
+      color: var(--muted);
+      max-width: 36rem;
+      margin: 0 auto 1.75rem;
+    }
+    .cta {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 1.05rem;
+      padding: 0.9rem 1.75rem;
+      border-radius: 10px;
+      transition: background 0.15s;
+    }
+    .cta:hover { background: var(--accent-hover); }
+    .cta-note {
+      display: block;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    .secondary-links {
+      margin-top: 1.25rem;
+      font-size: 0.9rem;
+    }
+    .secondary-links a { color: var(--muted); margin: 0 0.5rem; }
+    .secondary-links a:hover { color: var(--text); }
+    section { margin-top: 3rem; }
+    h2 { font-size: 1.35rem; margin-bottom: 1rem; }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+    }
+    .card h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--accent); }
+    .card p { color: var(--muted); font-size: 0.95rem; }
+    .steps { list-style: none; counter-reset: step; }
+    .steps li {
+      counter-increment: step;
+      padding: 0.75rem 0 0.75rem 2.5rem;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .steps li:last-child { border-bottom: none; }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      width: 1.75rem;
+      height: 1.75rem;
+      line-height: 1.75rem;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 50%;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .steps strong { color: var(--text); }
+    .pricing {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .pricing .price { font-size: 2rem; font-weight: 700; }
+    .pricing ul { margin-top: 1rem; padding-left: 1.2rem; color: var(--muted); }
+    .pricing li { margin: 0.35rem 0; }
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    summary { cursor: pointer; font-weight: 600; }
+    details p { margin-top: 0.5rem; color: var(--muted); font-size: 0.95rem; }
+    footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">PrompBase 2.5 · Windows</span>
+      <h1>Przestań szukać promptów w notatkach.<br>Otwórz ten, który działa — w 3 sekundy.</h1>
+      <p class="lead">
+        Lokalna biblioteka promptów do ChatGPT, Claude i Gemini.
+        Bez konta, bez chmury — plik zostaje na Twoim komputerze.
+      </p>
+      <a class="cta" href="https://github.com/zetmar-collab/PrompBase-Python/releases" id="cta-download">
+        Pobierz PrompBase — darmowy EXE na Windows
+      </a>
+      <span class="cta-note">~12 MB · bez instalacji Pythona · Windows 10/11</span>
+      <div class="secondary-links">
+        <a href="https://github.com/zetmar-collab/PrompBase-Python#readme">Dokumentacja</a>
+        <a href="https://github.com/zetmar-collab/PrompBase-Python">GitHub</a>
+      </div>
+    </header>
+
+    <section>
+      <h2>Co zyskujesz</h2>
+      <div class="grid">
+        <article class="card">
+          <h3>Oszczędzasz czas</h3>
+          <p>Wyszukiwanie z podświetleniem — zamiast przewijania notatek i historii czatów.</p>
+        </article>
+        <article class="card">
+          <h3>Powtarzalna jakość</h3>
+          <p>Sprawdzone prompty ze zmiennymi <code>[TEMAT]</code> — uzupełniane przy kopiowaniu.</p>
+        </article>
+        <article class="card">
+          <h3>Spokój o dane</h3>
+          <p>JSON na dysku. Nic nie leci na serwer — chyba że sam włączysz webhook n8n.</p>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <h2>Jak to działa</h2>
+      <ol class="steps">
+        <li><strong>Pobierz EXE</strong> i uruchom jednym kliknięciem.</li>
+        <li><strong>Wybierz prompt</strong> z listy (marketing, kod, n8n — gotowe przykłady).</li>
+        <li><strong>Kliknij „Kopiuj i użyj w AI”</strong> — treść w schowku, ChatGPT/Claude otwarte w przeglądarce.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Cennik</h2>
+      <div class="pricing">
+        <p class="price">0 zł</p>
+        <p style="color: var(--muted); margin-top: 0.25rem;">Wersja Free — na zawsze</p>
+        <ul>
+          <li>Biblioteka promptów, tagi, filtry, historia 5 wersji</li>
+          <li>Kopiowanie ze zmiennymi, skróty do platform AI</li>
+          <li>Import/eksport CSV, JSON, synchronizacja z folderem Drive/OneDrive</li>
+        </ul>
+        <p style="margin-top: 1rem; color: var(--muted); font-size: 0.9rem;">
+          Plan Pro (opcjonalnie, w przygotowaniu): gotowe paczki promptów branżowych i rozszerzone szablony.
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2>FAQ</h2>
+      <details>
+        <summary>Czy potrzebuję Pythona?</summary>
+        <p>Nie. Pobierz PrompBase.exe z GitHub Releases — działa od razu na Windows 10/11.</p>
+      </details>
+      <details>
+        <summary>Gdzie są moje dane?</summary>
+        <p>Windows: <code>%APPDATA%\PrompBase\promptbase.json</code>. Kopia zapasowa: <code>promptbase.json.bak</code>.</p>
+      </details>
+      <details>
+        <summary>Czy działa na Mac?</summary>
+        <p>Tak — wersja ze źródeł (Python + Tkinter). EXE jest tylko dla Windows.</p>
+      </details>
+      <details>
+        <summary>Mam starą wersję w przeglądarce (PWA)?</summary>
+        <p>W aplikacji: Plik → Import z PWA. Szczegóły w dokumentacji na GitHub.</p>
+      </details>
+    </section>
+
+    <section style="text-align: center; margin-top: 2.5rem;">
+      <a class="cta" href="https://github.com/zetmar-collab/PrompBase-Python/releases">Pobierz PrompBase.exe</a>
+    </section>
+
+    <footer>
+      <p>Marek Zettel · Cyfrowy Przyjaciel</p>
+      <p style="margin-top: 0.35rem;">PrompBase — lokalna biblioteka promptów AI</p>
+    </footer>
+  </div>
+</body>
+</html>

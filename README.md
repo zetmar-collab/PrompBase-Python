@@ -1,13 +1,26 @@
 # PrompBase Python
 
-Darmowa lokalna biblioteka promptów AI dla **Windows** i **macOS** (Python + Tkinter).  
+**Przestań szukać promptów w notatkach.** Lokalna biblioteka promptów AI dla **Windows** i **macOS** — znajdź, skopiuj, wklej do ChatGPT lub Claude w kilka sekund.
+
 Autor: [Marek Zettel](https://github.com/zetmar-collab)
 
-Bez konta, bez serwera — dane zapisują się na Twoim komputerze. Zgodność importu/eksportu z wersją PWA (przeglądarka).
+Bez konta, bez serwera — dane zapisują się na Twoim komputerze.
 
-## Pobieranie (Windows)
+## Pobierz (główne CTA)
 
-W [Releases](https://github.com/zetmar-collab/PrompBase-Python/releases) pobierz **PrompBase.exe** — nie wymaga instalacji Pythona.
+**[Pobierz PrompBase.exe na Windows](https://github.com/zetmar-collab/PrompBase-Python/releases)** — nie wymaga instalacji Pythona.
+
+Strona produktu (landing): otwórz plik [`landing/index.html`](landing/index.html) w przeglądarce lub w aplikacji: **Pomoc → Strona produktu**.
+
+## Dla kogo
+
+Marketerzy, copywriterzy i twórcy treści, którzy mają **więcej niż kilkanaście promptów** i tracą czas na ich szukanie. Opcjonalnie: programiści i użytkownicy **n8n** (webhook).
+
+## Co zyskujesz
+
+- **Czas** — wyszukiwanie z podświetleniem zamiast przewijania plików
+- **Jakość** — te same sprawdzone prompty ze zmiennymi `[TEMAT]`
+- **Prywatność** — JSON lokalnie w `%APPDATA%\PrompBase\`
 
 ## Uruchomienie ze źródeł
 
@@ -38,18 +51,18 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 
 Wynik: `dist\PrompBase.exe`
 
-## Funkcje (v2.4)
+## Funkcje (v2.5)
 
-- Biblioteka promptów: dodawanie, edycja, duplikowanie, historia (5 wersji)
-- Modele AI: GPT-5.5, Claude Opus 4.7, Gemini 3.5 i inne (lista w aplikacji)
-- Szybkie otwieranie: ChatGPT, Claude, Gemini, Perplexity, Copilot
-- Tagi i filtry (status, model, zastosowanie, tag)
-- Wyszukiwanie z podświetleniem frazy w podglądzie
-- Zmienne w promptach `[TEMAT]` — uzupełnianie przy kopiowaniu
-- Import/eksport CSV, JSON, **PWA** (localStorage `promptLibrary`)
-- **Eksport do chmury** — folder Google Drive / OneDrive (synchronizacja desktop)
-- Integracja **n8n** (webhook: test, pojedynczy prompt, sync)
-- Tryb jasny / ciemny
+- **Kopiuj i użyj w AI** — główna akcja (Ctrl+Shift+A): kopiowanie + otwarcie ChatGPT/Claude/Gemini
+- Przewodnik startowy przy pierwszym uruchomieniu + checklista „Pierwsze kroki”
+- Przykładowe prompty: marketing, kod, n8n
+- Motywy: jasny, ciemny, **grafit**
+- Biblioteka: edycja, duplikowanie, historia (5 wersji), przypinanie
+- Import/eksport CSV, JSON, **PWA**
+- Eksport do Google Drive / OneDrive
+- Integracja **n8n**
+
+Pełna lista: zobacz [PRICING.md](PRICING.md) (Free vs plan Pro w przygotowaniu).
 
 ## Gdzie są dane
 
@@ -61,18 +74,16 @@ Wynik: `dist\PrompBase.exe`
 
 ## Import z PWA (przeglądarka)
 
-1. F12 → Application → Local Storage → skopiuj `promptLibrary`  
-   lub w konsoli: `copy(localStorage.getItem('promptLibrary'))`
-2. W aplikacji: **Plik → Import z PWA (przeglądarka)...**
+Szczegóły w aplikacji: **Plik → Import z PWA** (instrukcja w oknie dialogowym).
 
-Eksport do PWA: **Plik → Eksport dla PWA** — wklej wartość z powrotem w Local Storage.
+Skrót: F12 → Application → Local Storage → `promptLibrary`, lub w konsoli: `copy(localStorage.getItem('promptLibrary'))`.
 
 ## n8n
 
-1. W n8n utwórz workflow z węzłem **Webhook**
-2. W PrompBase: **Narzędzia → Konfiguracja n8n** — wklej Production URL
-3. **Testuj webhook** → rozgałęzienie po polu `type`: `test` | `single_prompt` | `sync`
+1. Workflow z węzłem **Webhook**
+2. **Narzędzia → Konfiguracja n8n** — Production URL
+3. Test / pojedynczy prompt / sync
 
 ## Licencja
 
-Projekt udostępniony publicznie przez autora. Kod źródłowy do użytku osobistego i edukacyjnego.
+Projekt udostępniony publicznie. Kod do użytku osobistego i edukacyjnego.

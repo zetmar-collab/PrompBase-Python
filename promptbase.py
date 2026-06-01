@@ -1551,17 +1551,25 @@ class PrompBaseApp:
         header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         header.columnconfigure(0, weight=1)
         ttk.Label(header, text=f"PrompBase v{APP_VERSION}", style="Header.TLabel").grid(row=0, column=0, sticky=W)
+        ttk.Label(
+            header,
+            text="Znajdź prompt · skopiuj · wklej do AI",
+            style="Muted.TLabel",
+        ).grid(row=1, column=0, sticky=W)
         self.stats_label = ttk.Label(header, text="", style="Muted.TLabel")
-        self.stats_label.grid(row=1, column=0, sticky=W)
-        ttk.Label(header, text=f"Autor: {APP_AUTHOR}", style="Muted.TLabel").grid(row=2, column=0, sticky=W)
+        self.stats_label.grid(row=2, column=0, sticky=W)
+        ttk.Label(header, text=f"Autor: {APP_AUTHOR}", style="Muted.TLabel").grid(row=3, column=0, sticky=W)
         ttk.Radiobutton(header, text="Jasny", variable=self.theme_var, value="jasny", command=self.apply_theme).grid(
             row=0, column=1, rowspan=2, padx=(4, 0)
         )
         ttk.Radiobutton(header, text="Ciemny", variable=self.theme_var, value="ciemny", command=self.apply_theme).grid(
-            row=0, column=2, rowspan=2, padx=(4, 8)
+            row=0, column=2, rowspan=2, padx=(4, 0)
+        )
+        ttk.Radiobutton(header, text="Grafit", variable=self.theme_var, value="grafit", command=self.apply_theme).grid(
+            row=2, column=1, columnspan=2, sticky=W, padx=(4, 8)
         )
         ttk.Button(header, text="+ Nowy Prompt", style="Accent.TButton", command=self.new_prompt).grid(
-            row=0, column=3, rowspan=3, padx=4
+            row=0, column=3, rowspan=4, padx=4
         )
 
         sidebar = ttk.LabelFrame(main, text="Filtry", padding=10)
@@ -1776,6 +1784,7 @@ class PrompBaseApp:
         self.root.bind("<Control-d>", lambda _event: self.duplicate_selected())
         self.root.bind("<Control-Return>", lambda _event: self.edit_selected())
         self.root.bind("<Control-Shift-C>", lambda _event: self.copy_selected_with_meta())
+        self.root.bind("<Control-Shift-A>", lambda _event: self.copy_and_use_ai())
 
     def available_models(self) -> list[str]:
         custom = [prompt.model for prompt in self.store.prompts if prompt.model]
