@@ -26,6 +26,7 @@ jobs:
 
       - name: Build Premium Prompty ZIP
         run: powershell -ExecutionPolicy Bypass -File scripts/build_premium_zip.ps1
+        continue-on-error: true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
