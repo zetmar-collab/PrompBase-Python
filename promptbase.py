@@ -11,6 +11,7 @@ import csv
 import json
 import os
 import platform
+import sys
 import re
 import shutil
 import subprocess
@@ -47,7 +48,7 @@ from urllib.error import HTTPError, URLError
 
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.5"
+APP_VERSION = "2.6"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
 APP_AUTHOR_URL = "https://github.com/zetmar-collab"
 APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
@@ -64,9 +65,20 @@ PWA_STORAGE_KEY = "promptLibrary"
 N8N_SOURCE = "biblioteka-promptow"
 N8N_HTTP_TIMEOUT = 30
 APP_AUTHOR = "Marek Zettel"
-APP_DIR = Path(__file__).resolve().parent
+
+
+def resolve_app_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = resolve_app_dir()
 ASSETS_DIR = APP_DIR / "assets"
 LANDING_PAGE_PATH = APP_DIR / "landing" / "index.html"
+DOCS_DIR = APP_DIR / "docs"
+DOC_PWA_IMPORT = DOCS_DIR / "PWA-IMPORT.md"
+DOC_QUICKSTART = DOCS_DIR / "QUICKSTART.md"
 
 THEMES = {
     "jasny": {
@@ -143,6 +155,7 @@ AI_MODELS = [
     "Mistral Large",
     "Llama 4",
     "Perplexity Sonar",
+    "Manus",
     # Poprzednie generacje (stare prompty / kompatybilność)
     "GPT-4.1",
     "GPT-4o",
@@ -152,12 +165,33 @@ AI_MODELS = [
     "Gemini 2.5 Flash",
 ]
 
+MODELS_FILE = APP_DIR / "models.json"
+
+
+def load_model_options() -> list[str]:
+    """Lista modeli z opcjonalnego models.json (obok aplikacji); gdy brak pliku
+    lub jest niepoprawny — wbudowana lista AI_MODELS. Dzięki temu aktualizacja
+    modeli nie wymaga przebudowy aplikacji."""
+    if MODELS_FILE.is_file():
+        try:
+            data = json.loads(MODELS_FILE.read_text(encoding="utf-8"))
+            models = data.get("models") if isinstance(data, dict) else data
+            if isinstance(models, list):
+                cleaned = [str(m).strip() for m in models if str(m).strip()]
+                if cleaned:
+                    return cleaned
+        except (OSError, json.JSONDecodeError):
+            pass
+    return list(AI_MODELS)
+
+
 AI_PLATFORMS = (
     ("ChatGPT", "https://chatgpt.com/"),
     ("Claude", "https://claude.ai/"),
     ("Gemini", "https://gemini.google.com/app"),
     ("Perplexity", "https://www.perplexity.ai/"),
     ("Copilot", "https://copilot.microsoft.com/"),
+    ("Manus", "https://manus.im/app"),
 )
 
 ZASTOSOWANIA_PRESET = [
@@ -244,10 +278,13 @@ def extract_placeholders(text: str) -> list[str]:
 
 
 def fill_placeholders(text: str, values: dict[str, str]) -> str:
-    result = text
-    for key, value in values.items():
-        result = result.replace(key, value)
-    return result
+    """Podmienia [TOKEN] w jednym przejściu — wartość jednej zmiennej nie jest
+    ponownie traktowana jako placeholder innej (brak kaskadowych podmian)."""
+    def _replace(match: "re.Match[str]") -> str:
+        token = match.group(0)
+        return values[token] if token in values else token
+
+    return PLACEHOLDER_RE.sub(_replace, text or "")
 
 
 def parse_tags_value(raw) -> str:
@@ -416,6 +453,8 @@ def suggest_ai_platform(model: str) -> str | None:
         return "Perplexity"
     if "copilot" in lowered:
         return "Copilot"
+    if "manus" in lowered:
+        return "Manus"
     return None
 
 
@@ -623,7 +662,11 @@ class PromptStore:
                 shutil.copy2(self.path, backup_path)
             except OSError:
                 pass
-        self.path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Zapis atomowy: najpierw plik tymczasowy, potem os.replace — przerwany
+        # zapis nie uszkodzi promptbase.json.
+        tmp_path = self.path.with_suffix(".json.tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp_path, self.path)
 
     def sample_data(self, *, force: bool = False) -> None:
         if self.prompts and not force:
@@ -708,11 +751,11 @@ class PwaImportDialog(Toplevel):
         ttk.Label(
             body,
             text=(
-                "Eksport z przeglądarki (PrompBase PWA):\n"
-                "1. Otwórz PrompBase w Chrome/Edge → F12 → Application → Local Storage\n"
-                "2. Skopiuj wartość klucza „promptLibrary” LUB w konsoli wpisz:\n"
-                "   copy(localStorage.getItem('promptLibrary'))\n"
-                "3. Wklej poniżej albo wczytaj plik .json (tablica promptów lub pełny eksport)."
+                "Masz bibliotekę w starej wersji przeglądarkowej (PWA)?\n\n"
+                "1. Otwórz PrompBase w Chrome lub Edge.\n"
+                "2. Naciśnij F12 → zakładka Console (Konsola).\n"
+                "3. Kliknij „Kopiuj polecenie” poniżej, wklej w konsoli Enter.\n"
+                "4. Wklej skopiowany JSON tutaj (Ctrl+V) lub wczytaj plik .json."
             ),
             wraplength=660,
             justify=LEFT,
@@ -720,7 +763,9 @@ class PwaImportDialog(Toplevel):
 
         toolbar = ttk.Frame(body)
         toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        ttk.Button(toolbar, text="Wczytaj plik JSON...", command=self.load_file).pack(side=LEFT)
+        ttk.Button(toolbar, text="Kopiuj polecenie do konsoli", command=self.copy_console_command).pack(side=LEFT, padx=(0, 6))
+        ttk.Button(toolbar, text="Wczytaj plik JSON...", command=self.load_file).pack(side=LEFT, padx=(0, 6))
+        ttk.Button(toolbar, text="Pełna instrukcja", command=self.open_full_guide).pack(side=LEFT)
 
         from tkinter import Text
 
@@ -737,6 +782,26 @@ class PwaImportDialog(Toplevel):
         self.bind("<Escape>", lambda _event: self.destroy())
         self.transient(parent)
         self.grab_set()
+
+    def copy_console_command(self) -> None:
+        cmd = f"copy(localStorage.getItem('{PWA_STORAGE_KEY}'))"
+        self.clipboard_clear()
+        self.clipboard_append(cmd)
+        self.update()
+        messagebox.showinfo(
+            APP_NAME,
+            "Skopiowano do schowka:\n\n"
+            f"{cmd}\n\n"
+            "Wklej w konsoli przeglądarki (F12) i naciśnij Enter.\n"
+            "Potem wklej wynik w pole poniżej.",
+            parent=self,
+        )
+
+    def open_full_guide(self) -> None:
+        if DOC_PWA_IMPORT.is_file():
+            webbrowser.open(DOC_PWA_IMPORT.resolve().as_uri())
+        else:
+            webbrowser.open(f"{APP_HELP_URL}#import-z-pwa-przeglądarka")
 
     def load_file(self) -> None:
         path = filedialog.askopenfilename(
@@ -1194,13 +1259,15 @@ class PromptDialog(Toplevel):
             state="normal",
         )
         self.model_combo.grid(row=0, column=0, sticky="ew")
-        for col, (name, _url) in enumerate(AI_PLATFORMS, start=1):
+        platform_row = ttk.Frame(model_row)
+        platform_row.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        for col, (name, _url) in enumerate(AI_PLATFORMS):
             ttk.Button(
-                model_row,
+                platform_row,
                 text=name,
                 width=8,
                 command=lambda platform=name: self._open_platform(platform),
-            ).grid(row=0, column=col, padx=(4, 0))
+            ).grid(row=0, column=col, padx=(0, 4))
 
         ttk.Label(body, text="Zastosowanie").grid(row=4, column=0, sticky=W, pady=4)
         ttk.Combobox(
@@ -1246,9 +1313,9 @@ class PromptDialog(Toplevel):
 
         self.bind("<Escape>", lambda _event: self.destroy())
         self.bind("<Control-s>", lambda _event: self.save())
+        self.bind("<Control-Return>", lambda _event: self.save())
         self.transient(parent)
         self.grab_set()
-        self.name_var.set(self.name_var.get())
         self.after(100, lambda: self.focus_force())
 
     def _text_widget(self, parent: ttk.Frame):
@@ -1460,6 +1527,15 @@ class PrompBaseApp:
         self.style.configure("Muted.TLabel", background=colors["bg"], foreground=colors["muted"])
         self.style.configure("Accent.TButton", font=("Segoe UI", 10, "bold"))
         self.style.configure("Primary.TButton", font=("Segoe UI", 11, "bold"), padding=(10, 6))
+        try:
+            self.style.map(
+                "Primary.TButton",
+                background=[("active", colors["accent"]), ("!disabled", colors["accent"])],
+                foreground=[("!disabled", "#ffffff")],
+            )
+            self.style.configure("Primary.TButton", background=colors["accent"], foreground="#ffffff")
+        except Exception:
+            pass
         self.style.configure("Treeview", background=colors["surface"], foreground=colors["text"], fieldbackground=colors["surface"])
         self.style.configure("Treeview.Heading", background=colors["surface"], foreground=colors["text"])
         self.style.map("Treeview", background=[("selected", colors["select"])], foreground=[("selected", colors["text"])])
@@ -1487,9 +1563,10 @@ class PrompBaseApp:
     def _build_menu(self) -> None:
         menu = Menu(self.root)
         file_menu = Menu(menu, tearoff=False)
-        file_menu.add_command(label="Nowy prompt", accelerator="N", command=self.new_prompt)
+        file_menu.add_command(label="Nowy prompt", accelerator="Ctrl+N", command=self.new_prompt)
         file_menu.add_command(label="Import CSV...", command=self.import_csv)
         file_menu.add_command(label="Import z PWA (przeglądarka)...", command=self.import_from_pwa)
+        file_menu.add_command(label="Instrukcja importu PWA", command=self.open_pwa_import_guide)
         file_menu.add_command(label="Eksport CSV...", command=self.export_csv)
         file_menu.add_separator()
         file_menu.add_command(label="Kopia zapasowa JSON...", command=self.export_backup_json)
@@ -1524,6 +1601,8 @@ class PrompBaseApp:
         tools_menu.add_command(label="Wyślij zaznaczony do n8n", command=self.send_selected_to_n8n)
         tools_menu.add_command(label="Synchronizuj bibliotekę do n8n", command=self.sync_all_to_n8n)
         tools_menu.add_command(label="Eksportuj JSON dla n8n...", command=self.export_n8n_json)
+        tools_menu.add_separator()
+        tools_menu.add_command(label="Paczki promptów Pro (wkrótce)...", command=self.show_pro_coming_soon)
         menu.add_cascade(label="Narzędzia", menu=tools_menu)
 
         view_menu = Menu(menu, tearoff=False)
@@ -1534,10 +1613,13 @@ class PrompBaseApp:
 
         help_menu = Menu(menu, tearoff=False)
         help_menu.add_command(label="Przewodnik startowy", command=self.show_onboarding)
+        help_menu.add_command(label="Szybki start (PDF/MD)", command=self.open_quickstart_doc)
+        help_menu.add_command(label="Instrukcja importu PWA", command=self.open_pwa_import_guide)
         help_menu.add_command(label="Pomoc i skróty", accelerator="?", command=self.show_help)
         help_menu.add_separator()
         help_menu.add_command(label="Strona produktu", command=self.open_product_page)
         help_menu.add_command(label="Pobierz najnowszą wersję", command=self.open_download_page)
+        help_menu.add_command(label="Cennik (Free / Pro)", command=self.open_pricing_doc)
         menu.add_cascade(label="Pomoc", menu=help_menu)
         self.root.config(menu=menu)
 
@@ -1772,12 +1854,11 @@ class PrompBaseApp:
         return Text(parent, wrap="word", height=10, font=("Consolas", 10))
 
     def _bind_shortcuts(self) -> None:
-        self.root.bind("<KeyPress-n>", lambda _event: self.new_prompt())
         self.root.bind("<Control-Shift-N>", lambda _event: self.configure_n8n())
         self.root.bind("<Control-f>", lambda _event: self.focus_search())
         self.root.bind("/", lambda _event: self.focus_search())
         self.root.bind("?", lambda _event: self.show_help())
-        self.root.bind("<Delete>", lambda _event: self.delete_selected())
+        self.root.bind("<Delete>", self._on_delete_key)
         self.root.bind("<Control-e>", lambda _event: self.export_csv())
         self.root.bind("<Control-i>", lambda _event: self.import_csv())
         self.root.bind("<Control-n>", lambda _event: self.new_prompt())
@@ -1786,9 +1867,18 @@ class PrompBaseApp:
         self.root.bind("<Control-Shift-C>", lambda _event: self.copy_selected_with_meta())
         self.root.bind("<Control-Shift-A>", lambda _event: self.copy_and_use_ai())
 
+    def _on_delete_key(self, _event=None):
+        """Delete usuwa prompt tylko gdy fokus jest na liście — nie podczas
+        edycji w polu wyszukiwania czy comboboxach."""
+        focus = self.root.focus_get()
+        if focus is not None and focus.winfo_class() in ("Entry", "TEntry", "Text", "TCombobox"):
+            return None
+        self.delete_selected()
+        return "break"
+
     def available_models(self) -> list[str]:
         custom = [prompt.model for prompt in self.store.prompts if prompt.model]
-        return merge_model_options(AI_MODELS, custom)
+        return merge_model_options(load_model_options(), custom)
 
     def available_zastosowania(self) -> list[str]:
         custom = [prompt.zastosowanie for prompt in self.store.prompts if prompt.zastosowanie]
@@ -1874,6 +1964,35 @@ class PrompBaseApp:
         webbrowser.open(APP_RELEASE_URL)
         self.set_status("Otwarto stronę pobrań.")
 
+    def _open_doc(self, path: Path, fallback_url: str, status: str) -> None:
+        if path.is_file():
+            webbrowser.open(path.resolve().as_uri())
+            self.set_status(status)
+        else:
+            webbrowser.open(fallback_url)
+            self.set_status("Otwarto dokumentację online.")
+
+    def open_pwa_import_guide(self) -> None:
+        self._open_doc(DOC_PWA_IMPORT, APP_HELP_URL, "Otwarto instrukcję importu PWA.")
+
+    def open_quickstart_doc(self) -> None:
+        self._open_doc(DOC_QUICKSTART, APP_HELP_URL, "Otwarto szybki start.")
+
+    def open_pricing_doc(self) -> None:
+        pricing = APP_DIR / "PRICING.md"
+        self._open_doc(pricing, APP_HELP_URL, "Otwarto cennik.")
+
+    def show_pro_coming_soon(self) -> None:
+        messagebox.showinfo(
+            APP_NAME,
+            "Paczki promptów Pro — w przygotowaniu\n\n"
+            "Plan obejmuje gotowe zestawy (marketing, kod, automatyzacja) "
+            "bez wymuszania konta w chmurze.\n\n"
+            "Wersja Free zawiera pełną bibliotekę i wszystkie funkcje aplikacji.\n"
+            f"Szczegóły: {APP_DIR / 'PRICING.md'}",
+            parent=self.root,
+        )
+
     def restore_sample_prompts(self) -> None:
         if self.store.prompts:
             if not messagebox.askyesno(
@@ -1920,7 +2039,14 @@ class PrompBaseApp:
                 parent=self.root,
             )
             return
-        self.open_ai_platform(platform, copy_prompt=True)
+        if not self._clipboard_from_prompt(prompt):
+            return
+        self.store.mark_checklist("copied")
+        self._update_checklist_ui()
+        self.open_ai_platform(platform, copy_prompt=False)
+        self.store.mark_checklist("opened_ai")
+        self._update_checklist_ui()
+        self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform}.")
 
     def open_ai_platform(self, platform_name: str, *, copy_prompt: bool) -> None:
         url = next((item_url for name, item_url in AI_PLATFORMS if name == platform_name), "")
@@ -2285,6 +2411,8 @@ class PrompBaseApp:
             pwa_theme = dialog.theme.lower()
             if pwa_theme in ("dark", "ciemny"):
                 self.store.theme = "ciemny"
+            elif pwa_theme in ("grafit", "graphite"):
+                self.store.theme = "grafit"
             elif pwa_theme in ("light", "jasny"):
                 self.store.theme = "jasny"
             if self.store.theme in THEMES:
@@ -2794,9 +2922,10 @@ class PrompBaseApp:
             "Główna akcja: „Kopiuj i użyj w AI” — kopiuje prompt i otwiera platformę.\n"
             "Przewodnik startowy: menu Pomoc.\n\n"
             "Skróty:\n"
-            "N lub Ctrl+N - nowy prompt\n"
+            "Ctrl+N - nowy prompt\n"
             "Ctrl+D - duplikuj prompt\n"
             "Ctrl+Enter - edytuj zaznaczony\n"
+            "Ctrl+Shift+A - kopiuj i użyj w AI (główna akcja)\n"
             "Ctrl+Shift+C - kopiuj z metadanymi\n"
             "/ lub Ctrl+F - wyszukiwanie\n"
             "Delete - usuń zaznaczony\n"

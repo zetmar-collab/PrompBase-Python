@@ -1,21 +1,19 @@
-# PrompBase Python v2.0
+# PrompBase Python v2.5
 
 Autor: Marek Zettel
 
-Lokalna wersja aplikacji PrompBase przepisana z PWA HTML/JavaScript na Python + Tkinter.
+Lokalna biblioteka promptów AI (Python + Tkinter). Główna akcja: **Kopiuj i użyj w AI**.
 
-## Uruchamianie
+## Pobieranie (użytkownik końcowy)
+
+[GitHub Releases](https://github.com/zetmar-collab/PrompBase-Python/releases) — plik **PrompBase-{wersja}-Windows.zip** (EXE + landing + dokumentacja).
+
+## Uruchamianie (deweloper)
 
 Windows:
 
 ```bat
 Start-PrompBase-Windows.bat
-```
-
-Skrót na pulpicie z ikoną Windows:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File Create-Windows-Shortcut.ps1
 ```
 
 macOS:
@@ -25,44 +23,50 @@ chmod +x Start-PrompBase-macOS.command
 ./Start-PrompBase-macOS.command
 ```
 
-Bezpośrednio:
-
 ```bash
 python promptbase.py
 ```
 
+## Budowa EXE i paczki ZIP
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
+```
+
+Wynik:
+
+- `dist\PrompBase.exe`
+- `dist\PrompBase-2.5-Windows\` — folder do dystrybucji (EXE, `landing/`, `docs/`, `START.txt`)
+- `dist\PrompBase-2.5-Windows.zip`
+
+## Struktura marketing / docs
+
+| Ścieżka | Opis |
+|---------|------|
+| `landing/index.html` | Strona produktu (motyw grafit) |
+| `docs/QUICKSTART.md` | Szybki start |
+| `docs/PWA-IMPORT.md` | Import z przeglądarki |
+| `OPIS-NAFFY.md` | Opis na marketplace |
+| `PRICING.md` | Free / Pro |
+
 ## Ikony
-
-- Windows: `assets/promptbase.ico`
-- macOS: `assets/promptbase.icns`
-- PNG pomocnicze: `assets/promptbase-128.png`, `assets/promptbase-256.png`, `assets/promptbase-512.png`
-
-Ikony można odtworzyć poleceniem:
 
 ```bash
 python generate_icons.py
 ```
 
-## Dane
+- `assets/promptbase.ico` — Windows / EXE
 
-Aplikacja zapisuje bibliotekę lokalnie:
+## Dane użytkownika
 
 - Windows: `%APPDATA%\PrompBase\promptbase.json`
 - macOS: `~/Library/Application Support/PrompBase/promptbase.json`
-- Linux: `~/.local/share/PrompBase/promptbase.json`
 
-## Przeniesione funkcje
+## Funkcje (skrót)
 
-- dodawanie, edycja, usuwanie i podgląd promptów
-- pola: nazwa, status, format, model AI, zastosowanie, komentarz, treść
-- wyszukiwanie pełnotekstowe
-- filtry po statusie, modelu i zastosowaniu
-- sortowanie: najnowsze, najstarsze, A -> Z, Z -> A
-- przypięte prompty
-- kopiowanie promptu do schowka
-- import i eksport CSV zgodny z wersją PWA
-- konfiguracja webhooka n8n
-- wysyłka pojedynczego promptu lub synchronizacja całej biblioteki do n8n
-- tryb jasny i ciemny zapisywany w ustawieniach
+- Onboarding + checklista pierwszych kroków
+- Motywy: jasny, ciemny, grafit
+- n8n, PWA import, chmura Drive/OneDrive
+- Historia 5 wersji, zmienne `[TEMAT]`, wyszukiwanie z podświetleniem
 
-Wersja Python nie wymaga serwera HTTP, Service Workera ani przeglądarkowego `localStorage`.
+Szczegóły: [README.md](README.md)

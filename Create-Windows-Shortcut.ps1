@@ -7,7 +7,7 @@ $WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $TargetPath
 $Shortcut.WorkingDirectory = $AppDir
-$Shortcut.Description = "PrompBase Python"
+$Shortcut.Description = "PrompBase 2.5 - biblioteka promptow AI"
 if (Test-Path $IconPath) {
     $Shortcut.IconLocation = $IconPath
 }

@@ -1,0 +1,39 @@
+name: Build Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate icons (optional)
+        run: |
+          if (Test-Path generate_icons.py) { python generate_icons.py }
+        continue-on-error: true
+
+      - name: Build EXE and ZIP package
+        run: powershell -ExecutionPolicy Bypass -File scripts/build_windows.ps1
+
+      - name: Build Premium Prompty ZIP
+        run: powershell -ExecutionPolicy Bypass -File scripts/build_premium_zip.ps1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrompBase-Windows
+          path: |
+            dist/PrompBase.exe
+            dist/PrompBase-*-Windows.zip
+            dist/PrompBase-*-Windows/
+            dist/PrompBase-Premium-Prompty-*.zip
+            dist/PrompBase-Premium-Prompty-*/

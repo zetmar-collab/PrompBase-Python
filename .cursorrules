@@ -1,0 +1,25 @@
+# PrompBase Python — kontekst dla Cursor
+
+## Stack
+- Python 3.10+, Tkinter (stdlib only w runtime aplikacji)
+- Jeden plik aplikacji: `promptbase.py`
+- Windows EXE: PyInstaller (`scripts/build_windows.ps1`)
+
+## Cel
+Lokalna biblioteka promptów AI (bez konta, bez chmury). Główna akcja UX: **Kopiuj i użyj w AI**.
+
+## Nie rób
+- Nie dodawaj zależności pip do runtime aplikacji (tylko PyInstaller przy buildzie)
+- Nie wysyłaj danych użytkownika na zewnętrzne serwery (wyjątek: n8n webhook — opcjonalny, URL użytkownika)
+- Nie usuwaj kompatybilności importu PWA (`promptLibrary`)
+
+## Konwencje
+- UI po polsku
+- Wersja w `APP_VERSION`
+- Dane: `%APPDATA%\PrompBase\promptbase.json`
+- Motywy: jasny, ciemny, grafit (`THEMES`)
+- Marketing: `landing/index.html`, `OPIS-NAFFY.md`, komunikat pod korzyści nie listę funkcji
+
+## Build release
+`powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1`  
+Paczka ZIP: folder `dist\PrompBase-{version}-Windows\` z EXE + landing + docs

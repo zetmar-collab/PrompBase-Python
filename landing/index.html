@@ -137,6 +137,86 @@
       color: var(--muted);
       font-size: 0.9rem;
     }
+    .demo {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1rem;
+      overflow: hidden;
+    }
+    .demo-bar {
+      display: flex;
+      gap: 0.35rem;
+      margin-bottom: 0.75rem;
+    }
+    .demo-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
+    .demo-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 0.75rem;
+      min-height: 200px;
+    }
+    @media (max-width: 600px) { .demo-layout { grid-template-columns: 1fr; } }
+    .demo-list, .demo-preview {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 0.65rem;
+      font-size: 0.8rem;
+    }
+    .demo-row {
+      padding: 0.4rem 0.5rem;
+      border-radius: 6px;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+      transition: background 0.3s, color 0.3s;
+    }
+    .demo-row.active {
+      background: var(--select, #323848);
+      color: var(--text);
+      animation: pick 4s ease-in-out infinite;
+    }
+    .demo-cta {
+      display: block;
+      margin-top: 0.65rem;
+      text-align: center;
+      background: var(--accent);
+      color: #fff;
+      padding: 0.45rem;
+      border-radius: 8px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      animation: pulse 4s ease-in-out infinite;
+    }
+    .demo-preview p { color: var(--muted); margin-bottom: 0.5rem; }
+    .demo-preview .line {
+      height: 8px;
+      background: var(--border);
+      border-radius: 4px;
+      margin-bottom: 0.35rem;
+    }
+    .demo-preview .line.short { width: 55%; }
+    .demo-status {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: var(--accent);
+      min-height: 1.2em;
+      animation: status 4s ease-in-out infinite;
+    }
+    @keyframes pick {
+      0%, 20% { background: transparent; color: var(--muted); }
+      25%, 70% { background: #323848; color: var(--text); }
+      75%, 100% { background: transparent; color: var(--muted); }
+    }
+    @keyframes pulse {
+      0%, 30% { opacity: 0.5; transform: scale(0.98); }
+      35%, 65% { opacity: 1; transform: scale(1); }
+      70%, 100% { opacity: 0.5; transform: scale(0.98); }
+    }
+    @keyframes status {
+      0%, 32% { content: ""; opacity: 0; }
+      33%, 68% { opacity: 1; }
+      69%, 100% { opacity: 0; }
+    }
   </style>
 </head>
 <body>
@@ -157,6 +237,28 @@
         <a href="https://github.com/zetmar-collab/PrompBase-Python">GitHub</a>
       </div>
     </header>
+
+    <section>
+      <h2>Zobacz przepływ (15 s)</h2>
+      <div class="demo" aria-hidden="true">
+        <div class="demo-bar"><span class="demo-dot"></span><span class="demo-dot"></span><span class="demo-dot"></span></div>
+        <div class="demo-layout">
+          <div class="demo-list">
+            <div class="demo-row">Korektor ortografii PL</div>
+            <div class="demo-row active">Post LinkedIn — marketing</div>
+            <div class="demo-row">Analiza kodu Python</div>
+            <span class="demo-cta">Kopiuj i użyj w AI</span>
+          </div>
+          <div class="demo-preview">
+            <p><strong>Post LinkedIn — marketing</strong></p>
+            <div class="line"></div>
+            <div class="line"></div>
+            <div class="line short"></div>
+            <p class="demo-status">✓ Skopiowano · otwarto ChatGPT</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
     <section>
       <h2>Co zyskujesz</h2>
@@ -217,7 +319,7 @@
       </details>
       <details>
         <summary>Mam starą wersję w przeglądarce (PWA)?</summary>
-        <p>W aplikacji: Plik → Import z PWA. Szczegóły w dokumentacji na GitHub.</p>
+        <p>W paczce ZIP: <code>docs/PWA-IMPORT.md</code>. W aplikacji: Plik → Instrukcja importu PWA.</p>
       </details>
     </section>
 

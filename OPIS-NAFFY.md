@@ -1,92 +1,89 @@
-# PrompBase v2.4 — Opis dla naffy.io (Windows EXE)
+# PrompBase v2.5 — Opis dla naffy.io (Windows EXE)
 
 ---
 
 ## Tytuł produktu
 
-PrompBase 2.4 — lokalna biblioteka promptów AI dla Windows (bez instalacji)
+PrompBase 2.5 — znajdź prompt i wklej do AI w sekundę (Windows, bez instalacji)
 
 ---
 
 ## Krótki opis (do 160 znaków)
 
-Darmowa aplikacja Windows do zarządzania promptami AI. Jeden plik EXE — pobierz i uruchom. Bez instalacji, bez konta, bez chmury. Twoje prompty zostają na Twoim komputerze.
+Znajdź i wklej swój prompt do ChatGPT lub Claude w kilka sekund. Jeden EXE na Windows — bez konta, bez chmury. Dane zostają na Twoim komputerze.
 
 ---
 
 ## Długi opis
 
-Jeśli regularnie pracujesz z ChatGPT, Claude, Gemini albo innymi narzędziami AI, wiesz, jak szybko prompty rozpraszają się po notatkach, plikach tekstowych i historii czatów. PrompBase to prosta aplikacja desktopowa, która zbiera je wszystkie w jednym miejscu.
+Jeśli regularnie pracujesz z ChatGPT, Claude, Gemini albo innymi narzędziami AI, wiesz, jak szybko prompty rozpraszają się po notatkach, plikach tekstowych i historii czatów. **PrompBase zbiera je w jednym miejscu na Twoim dysku.**
 
-Pobierasz jeden plik EXE, klikasz — i gotowe. Nie trzeba instalować Pythona, nic konfigurować, nigdzie się logować. Aplikacja działa lokalnie na Twoim komputerze. Dane zapisują się w pliku JSON na dysku i nigdzie nie wylatują.
+Pobierasz jeden plik EXE, klikasz — i gotowe. Nie trzeba instalować Pythona, logować się ani wysyłać danych do chmury producenta.
 
-### Co możesz robić w PrompBase
+### Główna korzyść
 
-Każdy prompt opisujesz modelem AI (GPT-5.5, Claude Opus 4.7, Gemini 3.5 i inne), kategorią zastosowania (pisanie, kodowanie, marketing, SEO, n8n...), statusem i opcjonalnym tagiem. Potem wyszukujesz po dowolnej frazie — aplikacja podświetla trafienia bezpośrednio w podglądzie.
+**Kopiuj i użyj w AI** — jeden przycisk kopiuje prompt (z uzupełnieniem pól `[TEMAT]` jeśli trzeba) i otwiera ChatGPT, Claude lub inną platformę. Koniec z szukaniem we właściwych notatkach.
 
-Jeśli prompt ma zmienne w stylu `[TEMAT]` albo `[PRODUKT]`, aplikacja pyta o wartość w momencie kopiowania. Nie musisz nic ręcznie podmieniać.
+### Co możesz robić
 
-Bibliotekę możesz eksportować do CSV, JSON albo zsynchronizować z Google Drive lub OneDrive. Działa też import z wersji PWA (przeglądarkowej) — dane przeskakują między urządzeniami bez żadnej rejestracji.
+- Organizować prompty: model AI, kategoria (marketing, kod, n8n…), tagi, status
+- Wyszukiwać z podświetleniem trafień w podglądzie
+- Używać zmiennych `[TEMAT]`, `[PRODUKT]` — uzupełniane przy kopiowaniu
+- Eksportować do CSV, JSON, synchronizować folder Drive/OneDrive
+- Importować z wersji PWA (przeglądarka)
+- Wysyłać prompty do workflow **n8n** (webhook)
+- Przechowywać historię edycji (5 wersji wstecz)
 
-Dla użytkowników n8n: wbudowany webhook pozwala wysłać pojedynczy prompt lub całą bibliotekę do workflow automatyzacji jednym kliknięciem.
+Przy pierwszym uruchomieniu: **przewodnik startowy** i gotowe przykłady (marketing, kod, automatyzacja).
 
-### Szybki dostęp do platform AI
+### Dla kogo (głównie)
 
-Pasek skrótów otwiera ChatGPT, Claude, Gemini, Perplexity i Copilot bezpośrednio z aplikacji. Kopiujesz prompt, klikasz platformę — jesteś gotowy do pracy.
-
-### Historia wersji
-
-Każda edycja promptu zapisuje poprzednią wersję (do 5 wstecz). Możesz wrócić do dowolnego wcześniejszego brzmienia bez utraty danych.
+Twórcy treści, marketerzy i copywriterzy, którzy mają **więcej niż kilkanaście promptów** i chcą je mieć pod ręką w 3 sekundy. Dodatkowo: programiści i użytkownicy n8n.
 
 ---
 
 ## Co dostajesz
 
-- PrompBase.exe — jeden plik, działa od razu na Windows 10/11
-- Biblioteka promptów z tagami, filtrami, historią edycji (5 wersji)
-- Obsługa modeli: GPT-5.5, Claude Opus 4.7, Gemini 3.5, DeepSeek V3, Grok 3 i inne
-- Szybkie otwieranie ChatGPT, Claude, Gemini, Perplexity, Copilot
-- Zmienne w promptach `[TEMAT]` — uzupełnianie przy kopiowaniu
-- Import/eksport CSV, JSON, PWA (localStorage)
+- PrompBase.exe — Windows 10/11, bez Pythona
+- Przycisk **Kopiuj i użyj w AI** + skróty do ChatGPT, Claude, Gemini, Perplexity, Copilot
+- Biblioteka z tagami, filtrami, historią (5 wersji)
+- Przykładowe prompty na start
+- Import/eksport CSV, JSON, PWA
 - Synchronizacja z Google Drive i OneDrive
-- Integracja z n8n (webhook: test, pojedynczy prompt, pełny sync)
-- Tryb jasny i ciemny
-- Dane wyłącznie lokalnie — zero chmury, zero logowania
-
----
-
-## Dla kogo
-
-Dla każdego, kto na co dzień używa narzędzi AI: twórców treści, marketerów, copywriterów, programistów, automatyzatorów n8n, fotografów i przedsiębiorców. Jeśli masz więcej niż kilkanaście promptów i szukasz ich dłużej niż chwilę — PrompBase rozwiązuje ten problem.
+- Integracja n8n
+- Motywy: jasny, ciemny, grafit
+- Dane wyłącznie lokalnie
 
 ---
 
 ## Wymagania
 
 - Windows 10 lub 11 (64-bit)
-- Brak dodatkowych wymagań — Python NIE jest potrzebny
+- Brak Pythona — wystarczy EXE
 
 ---
 
 ## Jak uruchomić
 
-1. Pobierz plik `PrompBase.exe`
+1. Pobierz `PrompBase.exe`
 2. Kliknij dwukrotnie
-3. Aplikacja uruchamia się od razu
+3. Przejdź przewodnik startowy i kliknij **Kopiuj i użyj w AI** na przykładzie
 
-Dane zapisują się automatycznie w: `%APPDATA%\PrompBase\promptbase.json`
+Dane: `%APPDATA%\PrompBase\promptbase.json`
 
 ---
 
 ## Prywatność
 
-PrompBase działa w 100% lokalnie. Żadne dane nie są wysyłane na zewnętrzne serwery. Wyjątek: funkcja n8n działa tylko wtedy, gdy samodzielnie wpiszesz adres swojego webhooka.
+100% lokalnie. Wyjątek: n8n tylko po wpisaniu własnego URL webhooka.
 
 ---
 
 ## Cena
 
-0 zł — darmowa aplikacja open source
+**0 zł** — wersja Free na zawsze (open source).
+
+Plan **Pro** (opcjonalnie, w przygotowaniu): paczki promptów branżowych — bez wymuszania konta w chmurze.
 
 ---
 
@@ -94,3 +91,4 @@ PrompBase działa w 100% lokalnie. Żadne dane nie są wysyłane na zewnętrzne 
 
 Marek Zettel / Cyfrowy Przyjaciel
 
+**Pobierz:** https://github.com/zetmar-collab/PrompBase-Python/releases

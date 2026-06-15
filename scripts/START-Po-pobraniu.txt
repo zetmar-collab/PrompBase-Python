@@ -1,0 +1,17 @@
+PrompBase 2.6 — Windows
+========================
+
+1. Uruchom PrompBase.exe (dwuklik).
+2. Przejdz przewodnik startowy.
+3. Kliknij "Kopiuj i uzyj w AI" na przykladzie.
+
+Strona produktu: otworz landing\index.html w przegladarce.
+Szybki start: docs\QUICKSTART.md
+Import z PWA: docs\PWA-IMPORT.md
+
+Pobierz aktualizacje:
+https://github.com/zetmar-collab/PrompBase-Python/releases
+
+Dane lokalnie: %APPDATA%\PrompBase\promptbase.json
+
+Autor: Marek Zettel / Cyfrowy Przyjaciel

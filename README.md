@@ -43,21 +43,30 @@ chmod +x Start-PrompBase-macOS.command
 python promptbase.py
 ```
 
-## Budowa EXE (Windows)
+## Budowa EXE i paczki ZIP (Windows)
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 ```
 
-Wynik: `dist\PrompBase.exe`
+Wynik:
 
-## Funkcje (v2.5)
+- `dist\PrompBase.exe`
+- `dist\PrompBase-2.6-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
-- **Kopiuj i użyj w AI** — główna akcja (Ctrl+Shift+A): kopiowanie + otwarcie ChatGPT/Claude/Gemini
+Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
+
+## Funkcje (v2.6)
+
+- **Kopiuj i użyj w AI** — główna akcja (Ctrl+Shift+A): kopiowanie + otwarcie ChatGPT/Claude/Gemini/Manus
+- Nowy prompt pod `Ctrl+N`; edycja zapisem `Ctrl+Enter`
+- Obsługa platform AI: ChatGPT, Claude, Gemini, Perplexity, Copilot, **Manus**
+- Edytowalna lista modeli przez `models.json` (bez przebudowy aplikacji)
 - Przewodnik startowy przy pierwszym uruchomieniu + checklista „Pierwsze kroki”
 - Przykładowe prompty: marketing, kod, n8n
 - Motywy: jasny, ciemny, **grafit**
 - Biblioteka: edycja, duplikowanie, historia (5 wersji), przypinanie
+- Bezpieczny, atomowy zapis biblioteki (ochrona przed uszkodzeniem pliku)
 - Import/eksport CSV, JSON, **PWA**
 - Eksport do Google Drive / OneDrive
 - Integracja **n8n**

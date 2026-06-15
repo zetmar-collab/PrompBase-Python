@@ -14,15 +14,30 @@
 
 **Dane wyłącznie lokalnie** — bez konta i bez chmury producenta.
 
-## Pro (w przygotowaniu)
+## Pro — paczka premium (naffy.io)
 
-Plan opcjonalny, bez wymuszania konta w chmurze:
+Gotowa paczka **250 promptów PL** (marketing, programowanie, content):
 
-- Gotowe paczki promptów (marketing, kod, automatyzacja)
+| Produkt | Cena | Gdzie |
+|---------|------|--------|
+| PrompBase Premium — 250 promptów (ZIP) | **69 zł** jednorazowo | naffy.io |
+| Promocja startowa (opcjonalnie) | **49 zł** | pierwsze tygodnie / limit sztuk |
+| Kotwica cenowa (przekreślona) | 99 zł | na stronie produktu |
+
+Szczegóły listingiu: [OPIS-NAFFY-PREMIUM.md](OPIS-NAFFY-PREMIUM.md)
+
+Plan rozszerzeń (później):
+
+- Aktualizacje roczne nowych promptów: **29 zł/rok**
+- Bundle z materiałem wideo: **79 zł**
+
+## Pro (aplikacja — w przygotowaniu)
+
+Plan opcjonalny w aplikacji, bez wymuszania konta w chmurze:
+
+- Integracja sklepu z paczkami promptów
 - Rozszerzone szablony i aktualizacje list modeli AI
 - Priorytetowe materiały edukacyjne (wideo / przewodniki)
-
-Orientacyjna cena: **49–99 zł jednorazowo** lub **29 zł/rok** — do ogłoszenia przy premierze Pro.
 
 ## Pobieranie
 

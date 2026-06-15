@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title PrompBase Python
+title PrompBase 2.5
 cd /d "%~dp0"
 
 where py >nul 2>nul
@@ -16,7 +16,11 @@ if %errorlevel%==0 (
 )
 
 echo Python 3 nie zostal znaleziony.
-echo Pobierz: https://www.python.org/downloads/
+echo.
+echo Uzytkownik Windows bez Pythona:
+echo Pobierz PrompBase.exe z GitHub Releases
+echo https://github.com/zetmar-collab/PrompBase-Python/releases
+echo.
 pause
 
 :end
