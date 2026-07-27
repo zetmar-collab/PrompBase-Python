@@ -13,6 +13,8 @@ dist/
 
 # Lokalne kopie zapasowe aplikacji (nie dane użytkownika)
 *.json.bak
+*.json.bak*
+*.json.tmp
 
 # IDE
 .idea/

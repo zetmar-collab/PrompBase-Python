@@ -144,7 +144,6 @@ def fix_placeholders(text: str) -> str:
 
 
 def needs_context_block(content: str, category: str) -> bool:
-    known = {"OPIS_BIZNESU", "GRUPA_DOCLOWA", "TEMAT", "JEZYK", "KOD_LUB_OPIS", "TECH_STACK"}
     found = set(re.findall(r"\[([A-Za-z0-9_]+)\]", content))
     if category == "marketing":
         return not (found & {"OPIS_BIZNESU", "GRUPA_DOCLOWA"})

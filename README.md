@@ -52,11 +52,30 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.6-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.7-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
-## Funkcje (v2.6)
+### Instalator (Setup.exe)
+
+Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/isdl.php)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
+```
+
+Wynik: `dist\PrompBase-2.7-Setup.exe` — instalacja per-user (bez administratora),
+skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
+
+## Testy i lint (dla programistów)
+
+```bash
+python -m pip install -e ".[dev]"
+python -m pytest
+python -m ruff check
+```
+
+## Funkcje (v2.7)
 
 - **Kopiuj i użyj w AI** — główna akcja (Ctrl+Shift+A): kopiowanie + otwarcie ChatGPT/Claude/Gemini/Manus
 - Nowy prompt pod `Ctrl+N`; edycja zapisem `Ctrl+Enter`

@@ -28,12 +28,19 @@ jobs:
         run: powershell -ExecutionPolicy Bypass -File scripts/build_premium_zip.ps1
         continue-on-error: true
 
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer (Setup.exe)
+        run: powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: PrompBase-Windows
           path: |
             dist/PrompBase.exe
+            dist/PrompBase-*-Setup.exe
             dist/PrompBase-*-Windows.zip
             dist/PrompBase-*-Windows/
             dist/PrompBase-Premium-Prompty-*.zip

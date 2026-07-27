@@ -4,9 +4,10 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Version = "2.6"
-if (Test-Path (Join-Path $Root "promptbase.py")) {
-    $match = Select-String -Path (Join-Path $Root "promptbase.py") -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1
+$Version = "2.7"
+$versionFile = Join-Path $Root "pbcore\core.py"
+if (Test-Path $versionFile) {
+    $match = Select-String -Path $versionFile -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1
     if ($match) { $Version = $match.Matches.Groups[1].Value }
 }
 

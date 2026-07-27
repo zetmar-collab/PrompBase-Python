@@ -4,8 +4,8 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Version = "2.6"
-$match = Select-String -Path (Join-Path $Root "promptbase.py") -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1
+$Version = "2.7"
+$match = Select-String -Path (Join-Path $Root "pbcore\core.py") -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1
 if ($match) { $Version = $match.Matches.Groups[1].Value }
 
 Write-Host "Budowa paczki premium promptow v$Version"

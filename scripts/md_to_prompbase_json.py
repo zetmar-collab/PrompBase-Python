@@ -104,7 +104,7 @@ def main() -> None:
 
     now_ms = int(datetime.now().timestamp() * 1000)
     prompts = []
-    for i, ((title, body), meta) in enumerate(zip(parsed, META)):
+    for i, ((title, body), meta) in enumerate(zip(parsed, META, strict=False)):
         prompts.append(
             {
                 "id": f"p_cursor_{i + 1:02d}_{uuid.uuid4().hex[:8]}",

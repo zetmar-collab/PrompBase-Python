@@ -2,8 +2,11 @@
 
 ## Stack
 - Python 3.10+, Tkinter (stdlib only w runtime aplikacji)
-- Jeden plik aplikacji: `promptbase.py`
-- Windows EXE: PyInstaller (`scripts/build_windows.ps1`)
+- Pakiet `pbcore/`: `core` (stałe + funkcje czyste), `models` (Prompt, PromptStore),
+  `dialogs` (okna), `app` (PrompBaseApp + main). `promptbase.py` to cienki punkt
+  wejścia re-eksportujący publiczne API (`import promptbase` nadal działa).
+- Testy: `python -m pytest` (logika bez GUI). Lint: `python -m ruff check`.
+- Windows EXE: PyInstaller (`scripts/build_windows.ps1`); instalator: `scripts/build_installer.ps1`
 
 ## Cel
 Lokalna biblioteka promptów AI (bez konta, bez chmury). Główna akcja UX: **Kopiuj i użyj w AI**.
