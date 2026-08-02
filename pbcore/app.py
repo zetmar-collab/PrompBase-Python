@@ -17,6 +17,7 @@ from tkinter import (
     END,
     LEFT,
     VERTICAL,
+    BooleanVar,
     Listbox,
     Menu,
     StringVar,
@@ -30,6 +31,8 @@ from tkinter import (
 from urllib import request
 from urllib.error import HTTPError, URLError
 
+from pbcore import ai
+from pbcore.ai_dialogs import AiConfigDialog, AiResultDialog
 from pbcore.core import *  # noqa: F401,F403
 from pbcore.dialogs import *  # noqa: F401,F403
 from pbcore.models import *  # noqa: F401,F403
@@ -53,6 +56,7 @@ class PrompBaseApp:
         self.zastosowanie_filter = StringVar(value="Wszystkie")
         self.tag_filter = StringVar(value="Wszystkie")
         self.sort_var = StringVar(value="Najnowsze")
+        self.favorites_only = BooleanVar(value=False)
         self.theme_var = StringVar(value=self.store.theme)
         self._themed_text_widgets: list = []
 
@@ -184,6 +188,25 @@ class PrompBaseApp:
             )
         menu.add_cascade(label="AI", menu=ai_menu)
 
+        assistant_menu = Menu(menu, tearoff=False)
+        assistant_menu.add_command(
+            label="Ulepsz prompt", accelerator="Ctrl+Shift+I", command=self.ai_improve_selected
+        )
+        assistant_menu.add_command(
+            label="Przetłumacz prompt", accelerator="Ctrl+Shift+T", command=self.ai_translate_selected
+        )
+        adapt_menu = Menu(assistant_menu, tearoff=False)
+        for target in ai.ADAPT_TARGETS:
+            adapt_menu.add_command(
+                label=f"Dostosuj do {target}",
+                command=lambda name=target: self.ai_adapt_selected(name),
+            )
+        assistant_menu.add_cascade(label="Dostosuj do platformy", menu=adapt_menu)
+        assistant_menu.add_separator()
+        assistant_menu.add_command(label="Konfiguracja AI...", command=self.configure_ai)
+        assistant_menu.add_command(label="Status silników AI", command=self.show_ai_status)
+        menu.add_cascade(label="Asystent AI", menu=assistant_menu)
+
         tools_menu = Menu(menu, tearoff=False)
         tools_menu.add_command(label="Konfiguracja n8n...", command=self.configure_n8n)
         tools_menu.add_command(label="Testuj webhook n8n", command=self.test_n8n_webhook)
@@ -314,9 +337,15 @@ class PrompBaseApp:
         ttk.Label(toolbar, text="Szukaj").grid(row=0, column=0, padx=(0, 6))
         self.search_entry = ttk.Entry(toolbar, textvariable=self.search_var)
         self.search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 8))
-        ttk.Label(toolbar, text="Sortuj").grid(row=0, column=2, padx=(0, 6))
+        ttk.Checkbutton(
+            toolbar,
+            text="★ Tylko ulubione",
+            variable=self.favorites_only,
+            command=self.refresh_list,
+        ).grid(row=0, column=2, padx=(0, 10))
+        ttk.Label(toolbar, text="Sortuj").grid(row=0, column=3, padx=(0, 6))
         ttk.Combobox(toolbar, textvariable=self.sort_var, values=list(SORT_OPTIONS), state="readonly", width=14).grid(
-            row=0, column=3
+            row=0, column=4
         )
 
         split = ttk.PanedWindow(content, orient="horizontal")
@@ -325,10 +354,11 @@ class PrompBaseApp:
         list_frame = ttk.Frame(split)
         list_frame.rowconfigure(0, weight=1)
         list_frame.columnconfigure(0, weight=1)
-        columns = ("pinned", "name", "status", "model", "zastosowanie", "format", "created")
+        columns = ("pinned", "favorite", "name", "status", "model", "zastosowanie", "format", "created")
         self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", selectmode="browse")
         headings = {
             "pinned": "Pin",
+            "favorite": "★",
             "name": "Nazwa",
             "status": "Status",
             "model": "Model",
@@ -336,7 +366,16 @@ class PrompBaseApp:
             "format": "Format",
             "created": "Data",
         }
-        widths = {"pinned": 42, "name": 230, "status": 90, "model": 100, "zastosowanie": 130, "format": 90, "created": 125}
+        widths = {
+            "pinned": 42,
+            "favorite": 32,
+            "name": 230,
+            "status": 90,
+            "model": 100,
+            "zastosowanie": 130,
+            "format": 90,
+            "created": 125,
+        }
         for col in columns:
             self.tree.heading(col, text=headings[col])
             self.tree.column(col, width=widths[col], minwidth=40, stretch=(col == "name"))
@@ -389,15 +428,33 @@ class PrompBaseApp:
         self.detail_actions = ttk.Frame(detail)
         self.detail_actions.grid(row=7, column=0, sticky="ew", pady=(6, 0))
         buttons = self.detail_actions
-        for idx in range(7):
+        for idx in range(8):
             buttons.columnconfigure(idx, weight=1)
         ttk.Button(buttons, text="Kopiuj", command=self.copy_selected).grid(row=0, column=0, sticky="ew", padx=2)
         ttk.Button(buttons, text="Edytuj", command=self.edit_selected).grid(row=0, column=1, sticky="ew", padx=2)
         ttk.Button(buttons, text="Duplikuj", command=self.duplicate_selected).grid(row=0, column=2, sticky="ew", padx=2)
         ttk.Button(buttons, text="Historia", command=self.show_history).grid(row=0, column=3, sticky="ew", padx=2)
         ttk.Button(buttons, text="Przypnij", command=self.toggle_selected_pin).grid(row=0, column=4, sticky="ew", padx=2)
-        ttk.Button(buttons, text="n8n", command=self.send_selected_to_n8n).grid(row=0, column=5, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Usuń", command=self.delete_selected).grid(row=0, column=6, sticky="ew", padx=2)
+        ttk.Button(buttons, text="★ Ulubiony", command=self.toggle_selected_favorite).grid(
+            row=0, column=5, sticky="ew", padx=2
+        )
+        ttk.Button(buttons, text="n8n", command=self.send_selected_to_n8n).grid(row=0, column=6, sticky="ew", padx=2)
+        ttk.Button(buttons, text="Usuń", command=self.delete_selected).grid(row=0, column=7, sticky="ew", padx=2)
+
+        # Rząd akcji asystenta AI (przepisywanie promptu przez model).
+        self.assistant_buttons = ttk.Frame(detail)
+        self.assistant_buttons.grid(row=9, column=0, sticky="ew", pady=(6, 0))
+        for idx in range(3):
+            self.assistant_buttons.columnconfigure(idx, weight=1)
+        ttk.Button(
+            self.assistant_buttons, text="✨ Ulepsz", command=self.ai_improve_selected
+        ).grid(row=0, column=0, sticky="ew", padx=2)
+        ttk.Button(
+            self.assistant_buttons, text="🌐 Przetłumacz", command=self.ai_translate_selected
+        ).grid(row=0, column=1, sticky="ew", padx=2)
+        ttk.Button(
+            self.assistant_buttons, text="🎯 Dostosuj…", command=self._ask_adapt_target
+        ).grid(row=0, column=2, sticky="ew", padx=2)
 
         self.ai_buttons = ttk.Frame(detail)
         self.ai_buttons.grid(row=8, column=0, sticky="ew", pady=(6, 0))
@@ -456,6 +513,9 @@ class PrompBaseApp:
         self.root.bind("<Control-Return>", lambda _event: self.edit_selected())
         self.root.bind("<Control-Shift-C>", lambda _event: self.copy_selected_with_meta())
         self.root.bind("<Control-Shift-A>", lambda _event: self.copy_and_use_ai())
+        self.root.bind("<Control-b>", self.toggle_selected_favorite)
+        self.root.bind("<Control-Shift-I>", lambda _event: self.ai_improve_selected())
+        self.root.bind("<Control-Shift-T>", lambda _event: self.ai_translate_selected())
 
     def _on_delete_key(self, _event=None):
         """Delete usuwa prompt tylko gdy fokus jest na liście — nie podczas
@@ -702,8 +762,13 @@ class PrompBaseApp:
         zastosowanie_filter = self.zastosowanie_filter.get()
         tag_filter = self.tag_filter.get()
 
+        only_favorites = bool(self.favorites_only.get())
+        terms = search_terms(query)
+
         result = []
         for prompt in self.store.prompts:
+            if only_favorites and not prompt.favorite:
+                continue
             if status_filter != "Wszystkie" and status_label(prompt.status) != status_filter:
                 continue
             if model_filter != "Wszystkie" and prompt.model != model_filter:
@@ -723,7 +788,8 @@ class PrompBaseApp:
                     prompt.status,
                 ]
             ).lower()
-            if query and query not in haystack:
+            # Wiele słów = warunek AND (kolejność bez znaczenia).
+            if terms and not all(term in haystack for term in terms):
                 continue
             result.append(prompt)
 
@@ -736,6 +802,8 @@ class PrompBaseApp:
             result.sort(key=lambda p: p.name.lower())
         elif sort == "za":
             result.sort(key=lambda p: p.name.lower(), reverse=True)
+        # Ulubione zawsze na górze — sort stabilny, więc kolejność wyżej zostaje.
+        result.sort(key=lambda p: not p.favorite)
 
         self.filtered = result
         selected = self.selected_id
@@ -747,6 +815,7 @@ class PrompBaseApp:
                 iid=prompt.id,
                 values=(
                     "*" if prompt.pinned else "",
+                    "★" if prompt.favorite else "",
                     prompt.name,
                     status_label(prompt.status),
                     prompt.model,
@@ -1044,6 +1113,132 @@ class PrompBaseApp:
         self.refresh_all()
         self.set_status("Przypięto prompt." if prompt.pinned else "Odpięto prompt.")
 
+    # --- Asystent AI -------------------------------------------------------
+
+    def configure_ai(self) -> None:
+        dialog = AiConfigDialog(self.root, self.store.ai_settings, theme_getter=self.get_theme_colors)
+        self.root.wait_window(dialog)
+        if dialog.result:
+            self.store.ai_settings.update(dialog.result)
+            self.store.save()
+            engine_label = ai.ENGINES.get(self.store.ai_settings["engine"], "")
+            self.set_status(f"Zapisano konfigurację AI ({engine_label}).")
+
+    def show_ai_status(self) -> None:
+        settings = self.store.ai_settings
+        engine = settings.get("engine", ai.ENGINE_OLLAMA)
+        has_key = bool(ai.openrouter_api_key())
+        models = ai.list_ollama_models(settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST))
+        lines = [
+            f"Aktywny silnik: {ai.ENGINES.get(engine, engine)}",
+            "",
+            "OpenRouter (chmura)",
+            f"  Klucz {ai.OPENROUTER_API_KEY_ENV}: {'wykryty' if has_key else 'BRAK'}",
+            f"  Model: {settings.get('openrouter_model', '')}",
+            "",
+            "Ollama (lokalnie)",
+            f"  Host: {settings.get('ollama_host', '')}",
+            f"  Status: {'działa — modeli: ' + str(len(models)) if models else 'brak odpowiedzi'}",
+            f"  Model: {settings.get('ollama_model', '')}",
+        ]
+        if models:
+            lines.append("  Dostępne: " + ", ".join(models[:8]))
+        messagebox.showinfo(APP_NAME, "\n".join(lines), parent=self.root)
+
+    def _run_ai_action(self, action: str, *, title: str, target: str = "") -> None:
+        prompt = self.selected_prompt()
+        if not prompt:
+            messagebox.showinfo(APP_NAME, "Najpierw wybierz prompt z listy.", parent=self.root)
+            return
+        if not prompt.content.strip():
+            messagebox.showinfo(APP_NAME, "Ten prompt nie ma treści.", parent=self.root)
+            return
+
+        settings = self.store.ai_settings
+        engine = settings.get("engine", ai.ENGINE_OLLAMA)
+        model = (
+            settings.get("openrouter_model", "")
+            if engine == ai.ENGINE_OPENROUTER
+            else settings.get("ollama_model", "")
+        )
+
+        def runner():
+            return ai.run_ai_action(
+                engine=engine,
+                action=action,
+                content=prompt.content,
+                model=model,
+                target=target,
+                language=settings.get("translate_language", "angielski"),
+                host=settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST),
+            )
+
+        dialog = AiResultDialog(
+            self.root,
+            title=f"{title} — {ai.ENGINES.get(engine, engine)}",
+            original=prompt.content,
+            runner=runner,
+            theme_getter=self.get_theme_colors,
+        )
+        self.root.wait_window(dialog)
+
+        if not dialog.decision or not dialog.result_text.strip():
+            return
+
+        if dialog.decision == "replace":
+            # Poprzednia treść trafia do historii — zmianę można cofnąć.
+            push_prompt_history(prompt)
+            prompt.content = dialog.result_text
+            self.store.save()
+            self.refresh_all()
+            self.set_status(f"{title}: treść zaktualizowana (poprzednia wersja w historii).")
+        else:
+            clone = Prompt(
+                name=f"{prompt.name} ({title})",
+                content=dialog.result_text,
+                status=prompt.status,
+                format=prompt.format,
+                model=prompt.model,
+                zastosowanie=prompt.zastosowanie,
+                tags=prompt.tags,
+                comment=prompt.comment,
+            )
+            self.store.prompts.insert(0, clone)
+            self.store.save()
+            self.selected_id = clone.id
+            self.refresh_all()
+            self.set_status(f"{title}: zapisano jako nowy prompt.")
+
+    def ai_improve_selected(self) -> None:
+        self._run_ai_action(ai.ACTION_IMPROVE, title="Ulepszony")
+
+    def ai_translate_selected(self) -> None:
+        language = self.store.ai_settings.get("translate_language", "angielski")
+        self._run_ai_action(ai.ACTION_TRANSLATE, title=f"Tłumaczenie {language}")
+
+    def ai_adapt_selected(self, target: str) -> None:
+        self._run_ai_action(ai.ACTION_ADAPT, title=f"Wersja {target}", target=target)
+
+    def _ask_adapt_target(self) -> None:
+        """Menu podręczne z listą platform — wywoływane przyciskiem „Dostosuj…”."""
+        menu = Menu(self.root, tearoff=False)
+        for target in ai.ADAPT_TARGETS:
+            menu.add_command(label=target, command=lambda name=target: self.ai_adapt_selected(name))
+        try:
+            widget = self.assistant_buttons
+            menu.tk_popup(widget.winfo_rootx(), widget.winfo_rooty() + widget.winfo_height())
+        finally:
+            menu.grab_release()
+
+    def toggle_selected_favorite(self, _event=None) -> None:
+        prompt = self.selected_prompt()
+        if not prompt:
+            return
+        prompt.favorite = not prompt.favorite
+        self.store.save()
+        self.refresh_all()
+        self.set_status("Dodano do ulubionych." if prompt.favorite else "Usunięto z ulubionych.")
+
     def copy_selected(self) -> None:
         prompt = self.selected_prompt()
         if not prompt:
@@ -1118,6 +1313,7 @@ class PrompBaseApp:
         self.model_filter.set("Wszystkie")
         self.zastosowanie_filter.set("Wszystkie")
         self.tag_filter.set("Wszystkie")
+        self.favorites_only.set(False)
         self.search_var.set("")
         self.refresh_list()
 

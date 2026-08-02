@@ -1,9 +1,9 @@
 ; Instalator PrompBase (Inno Setup)
 ; Buduj przez: scripts\build_installer.ps1 (najpierw build_windows.ps1)
-; Wersja przekazywana z zewnątrz: ISCC /DAppVersion=2.7 installer\PrompBase.iss
+; Wersja przekazywana z zewnątrz: ISCC /DAppVersion=2.8 installer\PrompBase.iss
 
 #ifndef AppVersion
-  #define AppVersion "2.7"
+  #define AppVersion "2.8"
 #endif
 
 #define AppName "PrompBase"

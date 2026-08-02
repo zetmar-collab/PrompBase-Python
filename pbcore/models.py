@@ -23,6 +23,7 @@ class Prompt:
     tags: str = ""
     comment: str = ""
     pinned: bool = False
+    favorite: bool = False
     created: int = field(default_factory=now_ms)
     id: str = field(default_factory=lambda: f"p_{uuid.uuid4().hex[:12]}")
     history: list[dict] = field(default_factory=list)
@@ -44,6 +45,7 @@ class Prompt:
             tags=parse_tags_value(data.get("tags") or data.get("Tagi") or data.get("tagi") or ""),
             comment=str(data.get("comment") or data.get("Komentarz") or "").strip(),
             pinned=bool(data.get("pinned", False)),
+            favorite=bool(data.get("favorite", False)),
             created=int(data.get("created") or now_ms()),
             history=history,
         )
@@ -60,6 +62,7 @@ class Prompt:
             "content": self.content,
             "comment": self.comment,
             "pinned": self.pinned,
+            "favorite": self.favorite,
             "created": self.created,
         }
         if self.history:
@@ -77,6 +80,8 @@ class PromptStore:
         self.cloud_folders: dict[str, str] = {"google_drive": "", "onedrive": ""}
         self.onboarding_done = False
         self.checklist: dict[str, bool] = dict(DEFAULT_CHECKLIST)
+        # Ustawienia silników AI (bez klucza API — ten czytamy ze środowiska).
+        self.ai_settings: dict[str, str] = dict(DEFAULT_AI_SETTINGS)
         self.load()
 
     def load(self) -> None:
@@ -105,6 +110,12 @@ class PromptStore:
             if isinstance(data.get("checklist"), dict):
                 merged.update({k: bool(v) for k, v in data["checklist"].items() if k in merged})
             self.checklist = merged
+            ai_stored = data.get("ai_settings")
+            if isinstance(ai_stored, dict):
+                self.ai_settings = {
+                    key: str(ai_stored.get(key, default) or default)
+                    for key, default in DEFAULT_AI_SETTINGS.items()
+                }
             if raw_prompts and "onboarding_done" not in data:
                 self.onboarding_done = True
         if self.theme not in THEMES:
@@ -131,6 +142,7 @@ class PromptStore:
             "cloud_folders": self.cloud_folders,
             "onboarding_done": self.onboarding_done,
             "checklist": self.checklist,
+            "ai_settings": self.ai_settings,
             "prompts": [prompt.to_dict() for prompt in self.prompts],
         }
 

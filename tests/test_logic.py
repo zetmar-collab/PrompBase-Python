@@ -240,3 +240,91 @@ def test_status_label_roundtrip():
     for key in pb.STATUSES:
         label = pb.status_label(key)
         assert pb.status_key_from_label(label) == key
+
+
+# --- ulubione --------------------------------------------------------------
+
+def test_prompt_favorite_defaults_false():
+    assert pb.Prompt(name="N", content="C").favorite is False
+
+
+def test_prompt_favorite_roundtrip():
+    p = pb.Prompt(name="N", content="C", favorite=True)
+    assert pb.Prompt.from_dict(p.to_dict()).favorite is True
+
+
+def test_prompt_favorite_missing_key_is_false():
+    # Prompty z wersji 2.7 nie mają pola favorite — nie mogą się wywalić.
+    assert pb.Prompt.from_dict({"name": "N", "content": "C"}).favorite is False
+
+
+def test_store_persists_favorite(tmp_path):
+    store = pb.PromptStore(tmp_path / "promptbase.json")
+    store.prompts = [pb.Prompt(name="N", content="C", favorite=True)]
+    store.save()
+    assert pb.PromptStore(tmp_path / "promptbase.json").prompts[0].favorite is True
+
+
+# --- wyszukiwarka: wiele słów i frazy --------------------------------------
+
+def test_search_terms_splits_words():
+    assert pb.search_terms("post linkedin") == ["post", "linkedin"]
+
+
+def test_search_terms_keeps_quoted_phrase():
+    assert pb.search_terms('"post na blog" seo') == ["post na blog", "seo"]
+
+
+def test_search_terms_empty():
+    assert pb.search_terms("") == []
+    assert pb.search_terms("   ") == []
+
+
+def test_search_terms_lowercased():
+    assert pb.search_terms("SEO Blog") == ["seo", "blog"]
+
+
+# --- historia: limit 20 ----------------------------------------------------
+
+def test_history_limit_is_20():
+    assert pb.PROMPT_HISTORY_MAX == 20
+
+
+def test_push_history_respects_limit():
+    p = pb.Prompt(name="N", content="C0")
+    for i in range(30):
+        p.content = f"C{i}"
+        pb.push_prompt_history(p)
+    assert len(p.history) == pb.PROMPT_HISTORY_MAX
+    # Najnowsza wersja na początku.
+    assert p.history[0]["content"] == "C29"
+
+
+def test_push_history_skips_duplicate():
+    p = pb.Prompt(name="N", content="C")
+    pb.push_prompt_history(p)
+    pb.push_prompt_history(p)
+    assert len(p.history) == 1
+
+
+# --- ustawienia AI w store -------------------------------------------------
+
+def test_store_default_ai_settings(tmp_path):
+    store = pb.PromptStore(tmp_path / "promptbase.json")
+    assert store.ai_settings["engine"] in ("ollama", "openrouter")
+
+
+def test_store_persists_ai_settings(tmp_path):
+    path = tmp_path / "promptbase.json"
+    store = pb.PromptStore(path)
+    store.ai_settings["ollama_model"] = "llama3.2:3b"
+    store.save()
+    assert pb.PromptStore(path).ai_settings["ollama_model"] == "llama3.2:3b"
+
+
+def test_store_ai_settings_no_api_key_saved(tmp_path):
+    """Klucz OpenRouter nigdy nie może trafić do pliku danych."""
+    path = tmp_path / "promptbase.json"
+    store = pb.PromptStore(path)
+    store.save()
+    assert "api_key" not in path.read_text(encoding="utf-8").lower()

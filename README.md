@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.7-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.8-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
@@ -64,7 +64,7 @@ Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
-Wynik: `dist\PrompBase-2.7-Setup.exe` — instalacja per-user (bez administratora),
+Wynik: `dist\PrompBase-2.8-Setup.exe` — instalacja per-user (bez administratora),
 skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
 
 ## Testy i lint (dla programistów)
@@ -75,17 +75,36 @@ python -m pytest
 python -m ruff check
 ```
 
-## Funkcje (v2.7)
+## Funkcje (v2.8)
 
+### Asystent AI (nowość)
+
+Dwa silniki do wyboru — **OpenRouter** (chmura) i **Ollama** (lokalnie, bez wysyłania danych):
+
+- **Ulepsz prompt** (`Ctrl+Shift+I`) — doprecyzowanie roli, kontekstu i formatu odpowiedzi
+- **Przetłumacz** (`Ctrl+Shift+T`) — angielski, polski, niemiecki, hiszpański, francuski
+- **Dostosuj do platformy** — ChatGPT, Claude, Gemini, **Midjourney**, Perplexity, Copilot
+- Wynik zawsze w oknie podglądu obok oryginału: **Zastąp / Zapisz jako nowy / Anuluj**
+- Zmienne `[TEMAT]` są zachowywane; poprzednia treść trafia do historii
+- **Menu → Asystent AI → Konfiguracja AI** (wykrywanie modeli Ollamy) i **Status silników**
+
+Klucz OpenRouter czytany jest ze zmiennej środowiskowej `OPENROUTER_API_KEY` —
+nigdy nie jest zapisywany w pliku danych.
+
+### Biblioteka
+
+- **Ulubione** (`Ctrl+B`) — gwiazdka na liście, filtr „★ Tylko ulubione”, zawsze na górze
+- **Wyszukiwarka** — wiele słów naraz (warunek AND) i frazy w cudzysłowie: `"post na blog" seo`;
+  przeszukuje nazwę, treść, komentarz, tagi, model i status
+- **Wersjonowanie** — historia **20 wersji** z podglądem i przywracaniem
+- **Tagowanie** — filtr po tagach + presety
 - **Kopiuj i użyj w AI** — główna akcja (Ctrl+Shift+A): kopiowanie + otwarcie ChatGPT/Claude/Gemini/Manus
 - Nowy prompt pod `Ctrl+N`; edycja zapisem `Ctrl+Enter`
-- Obsługa platform AI: ChatGPT, Claude, Gemini, Perplexity, Copilot, **Manus**
 - Edytowalna lista modeli przez `models.json` (bez przebudowy aplikacji)
 - Przewodnik startowy przy pierwszym uruchomieniu + checklista „Pierwsze kroki”
-- Przykładowe prompty: marketing, kod, n8n
 - Motywy: jasny, ciemny, **grafit**
-- Biblioteka: edycja, duplikowanie, historia (5 wersji), przypinanie
-- Bezpieczny, atomowy zapis biblioteki (ochrona przed uszkodzeniem pliku)
+- Edycja, duplikowanie, przypinanie
+- Bezpieczny, atomowy zapis + rotacja 5 kopii zapasowych
 - Import/eksport CSV, JSON, **PWA**
 - Eksport do Google Drive / OneDrive
 - Integracja **n8n**

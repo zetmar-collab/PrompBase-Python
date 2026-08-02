@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # tylko dla adnotacji — brak cyklu w czasie wykonania
     from pbcore.models import Prompt
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.7"
+APP_VERSION = "2.8"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
 APP_AUTHOR_URL = "https://github.com/zetmar-collab"
 APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
@@ -27,7 +27,17 @@ DEFAULT_CHECKLIST = {
     "added_prompt": False,
 }
 CLOUD_SUBDIR = "PrompBase"
-PROMPT_HISTORY_MAX = 5
+PROMPT_HISTORY_MAX = 20
+# Ustawienia silników AI zapisywane w promptbase.json.
+# Klucz OpenRouter celowo NIE jest tu trzymany — czytamy go ze zmiennej
+# środowiskowej OPENROUTER_API_KEY, żeby nie leżał jawnie w pliku danych.
+DEFAULT_AI_SETTINGS = {
+    "engine": "ollama",
+    "openrouter_model": "anthropic/claude-sonnet-4.5",
+    "ollama_model": "llama3.1",
+    "ollama_host": "http://localhost:11434",
+    "translate_language": "angielski",
+}
 PROMPT_BACKUP_KEEP = 5
 PWA_STORAGE_KEY = "promptLibrary"
 N8N_SOURCE = "biblioteka-promptow"
@@ -263,6 +273,26 @@ def parse_tags_value(raw) -> str:
     return str(raw or "").strip()
 
 
+def search_terms(query: str) -> list[str]:
+    """Dzieli zapytanie na słowa (warunek AND).
+
+    Fraza w cudzysłowie traktowana jest jako całość: `"post na blog" seo`
+    daje ["post na blog", "seo"].
+    """
+    value = (query or "").strip().lower()
+    if not value:
+        return []
+    terms: list[str] = []
+    for index, chunk in enumerate(value.split('"')):
+        if index % 2:  # tekst pomiędzy cudzysłowami
+            phrase = chunk.strip()
+            if phrase:
+                terms.append(phrase)
+        else:
+            terms.extend(part for part in chunk.split() if part)
+    return terms
+
+
 def tag_list_from_string(tags: str) -> list[str]:
     return [part.strip() for part in (tags or "").split(",") if part.strip()]
 
@@ -318,6 +348,7 @@ def prompt_to_n8n_dict(prompt: Prompt) -> dict:
         "content": prompt.content,
         "comment": prompt.comment,
         "pinned": bool(prompt.pinned),
+        "favorite": bool(prompt.favorite),
         "created": prompt.created,
         "created_human": format_date(prompt.created),
     }

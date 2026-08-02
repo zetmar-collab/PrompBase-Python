@@ -1,4 +1,4 @@
-PrompBase 2.7 — Windows
+PrompBase 2.8 — Windows
 ========================
 
 1. Uruchom PrompBase.exe (dwuklik).
