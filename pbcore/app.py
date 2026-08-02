@@ -1127,13 +1127,17 @@ class PrompBaseApp:
     def show_ai_status(self) -> None:
         settings = self.store.ai_settings
         engine = settings.get("engine", ai.ENGINE_OLLAMA)
-        has_key = bool(ai.openrouter_api_key())
+        source = ai.api_key_source()
+        key_state = {
+            "env": f"wykryty (zmienna {ai.OPENROUTER_API_KEY_ENV})",
+            "plik": f"wykryty (ustawienia: {ai.api_key_file().name})",
+        }.get(source, "BRAK — wpisz go w Konfiguracja AI")
         models = ai.list_ollama_models(settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST))
         lines = [
             f"Aktywny silnik: {ai.ENGINES.get(engine, engine)}",
             "",
             "OpenRouter (chmura)",
-            f"  Klucz {ai.OPENROUTER_API_KEY_ENV}: {'wykryty' if has_key else 'BRAK'}",
+            f"  Klucz API: {key_state}",
             f"  Model: {settings.get('openrouter_model', '')}",
             "",
             "Ollama (lokalnie)",

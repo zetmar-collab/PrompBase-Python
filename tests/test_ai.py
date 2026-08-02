@@ -215,3 +215,76 @@ def test_run_ai_action_empty_model_answer_raises(monkeypatch):
     monkeypatch.setattr(ai, "run_ollama", lambda *a, **k: "   ")
     with pytest.raises(ai.AiError, match="pustą odpowiedź"):
         ai.run_ai_action(engine=ai.ENGINE_OLLAMA, action=ai.ACTION_IMPROVE, content="x")
+
+
+# --- klucz API: zmienna środowiskowa vs ustawienia -------------------------
+
+
+@pytest.fixture
+def key_store(tmp_path, monkeypatch):
+    """Izolowany folder danych — nie dotykamy prawdziwego klucza użytkownika."""
+    monkeypatch.setattr(ai, "app_data_dir", lambda: tmp_path)
+    monkeypatch.delenv(ai.OPENROUTER_API_KEY_ENV, raising=False)
+    return tmp_path
+
+
+def test_save_and_load_api_key(key_store):
+    ai.save_stored_api_key("sk-or-abc")
+    assert ai.load_stored_api_key() == "sk-or-abc"
+    assert ai.openrouter_api_key() == "sk-or-abc"
+
+
+def test_saved_key_is_trimmed(key_store):
+    ai.save_stored_api_key("  sk-or-spacje  ")
+    assert ai.load_stored_api_key() == "sk-or-spacje"
+
+
+def test_empty_key_removes_file(key_store):
+    ai.save_stored_api_key("sk-or-abc")
+    assert ai.api_key_file().exists()
+    ai.save_stored_api_key("")
+    assert not ai.api_key_file().exists()
+    assert ai.openrouter_api_key() == ""
+
+
+def test_missing_key_file_returns_empty(key_store):
+    assert ai.load_stored_api_key() == ""
+    assert ai.api_key_source() == ""
+
+
+def test_env_takes_precedence_over_stored(key_store, monkeypatch):
+    ai.save_stored_api_key("sk-z-pliku")
+    monkeypatch.setenv(ai.OPENROUTER_API_KEY_ENV, "sk-ze-srodowiska")
+    assert ai.openrouter_api_key() == "sk-ze-srodowiska"
+    assert ai.api_key_source() == "env"
+
+
+def test_api_key_source_reports_file(key_store):
+    ai.save_stored_api_key("sk-or-abc")
+    assert ai.api_key_source() == "plik"
+
+
+def test_key_file_is_outside_library_json(key_store):
+    """Klucz musi leżeć w osobnym pliku, nie w promptbase.json."""
+    ai.save_stored_api_key("sk-or-abc")
+    assert ai.api_key_file().name != "promptbase.json"
+    assert ai.api_key_file().parent == key_store
+
+
+def test_stored_key_never_lands_in_backup(key_store):
+    """Regresja: klucz nie może wyciec przez kopię zapasową ani eksport do chmury.
+
+    to_payload() zasila zapis biblioteki, backup JSON i eksport do Drive/OneDrive.
+    """
+    import promptbase as pb
+
+    ai.save_stored_api_key("sk-or-TAJNY")
+    store = pb.PromptStore(key_store / "promptbase.json")
+    store.prompts = [pb.Prompt(name="N", content="C")]
+    store.save()
+
+    import json as _json
+
+    payload = _json.dumps(store.to_payload(), ensure_ascii=False)
+    assert "sk-or-TAJNY" not in payload
+    assert "sk-or-TAJNY" not in (key_store / "promptbase.json").read_text(encoding="utf-8")

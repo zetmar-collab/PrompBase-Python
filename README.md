@@ -88,8 +88,14 @@ Dwa silniki do wyboru — **OpenRouter** (chmura) i **Ollama** (lokalnie, bez wy
 - Zmienne `[TEMAT]` są zachowywane; poprzednia treść trafia do historii
 - **Menu → Asystent AI → Konfiguracja AI** (wykrywanie modeli Ollamy) i **Status silników**
 
-Klucz OpenRouter czytany jest ze zmiennej środowiskowej `OPENROUTER_API_KEY` —
-nigdy nie jest zapisywany w pliku danych.
+**Klucz OpenRouter** — dwie drogi (zmienna ma pierwszeństwo):
+
+1. **W ustawieniach**: *Asystent AI → Konfiguracja AI → Klucz OpenRouter* (pole maskowane,
+   przyciski „Pokaż” i „Wyczyść”)
+2. **Zmienna środowiskowa** `OPENROUTER_API_KEY`
+
+Klucz zapisywany jest w osobnym pliku `openrouter.key` w folderze danych — **nigdy**
+w `promptbase.json`, więc nie trafia do kopii zapasowych ani eksportu do Google Drive / OneDrive.
 
 ### Biblioteka
 

@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from pbcore.core import APP_NAME, APP_VERSION
+from pbcore.core import APP_NAME, APP_VERSION, app_data_dir
 
 # --- konfiguracja silników -------------------------------------------------
 
@@ -177,9 +178,58 @@ def normalize_ollama_host(host: str) -> str:
     return value
 
 
+def api_key_file() -> Path:
+    """Ścieżka pliku z kluczem — osobno od promptbase.json.
+
+    Klucz celowo NIE trafia do promptbase.json, bo ten plik jest kopiowany do
+    kopii zapasowych i eksportowany do Google Drive / OneDrive — klucz
+    wyciekłby razem z nimi.
+    """
+    return app_data_dir() / "openrouter.key"
+
+
+def load_stored_api_key() -> str:
+    path = api_key_file()
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def save_stored_api_key(key: str) -> None:
+    """Zapisuje klucz (pusty = usuwa plik)."""
+    path = api_key_file()
+    value = (key or "").strip()
+    if not value:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value, encoding="utf-8")
+    # Na Windows ogranicz dostęp do bieżącego użytkownika (best effort).
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
 def openrouter_api_key() -> str:
-    """Klucz wyłącznie ze zmiennej środowiskowej (nie zapisujemy go w danych)."""
-    return (os.environ.get(OPENROUTER_API_KEY_ENV) or "").strip()
+    """Klucz API: najpierw zmienna środowiskowa, potem zapisany w ustawieniach.
+
+    Zmienna ma pierwszeństwo, żeby dało się nadpisać klucz bez zmiany ustawień
+    (np. inny klucz na czas testów).
+    """
+    from_env = (os.environ.get(OPENROUTER_API_KEY_ENV) or "").strip()
+    return from_env or load_stored_api_key()
+
+
+def api_key_source() -> str:
+    """Skąd pochodzi aktywny klucz: 'env', 'plik' albo '' (brak)."""
+    if (os.environ.get(OPENROUTER_API_KEY_ENV) or "").strip():
+        return "env"
+    return "plik" if load_stored_api_key() else ""
 
 
 class AiError(Exception):

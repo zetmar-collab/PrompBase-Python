@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 from tkinter import (
     END,
+    BooleanVar,
     StringVar,
     Toplevel,
     W,
@@ -27,8 +28,8 @@ class AiConfigDialog(Toplevel):
         super().__init__(parent)
         self.theme_getter = theme_getter
         self.title("Konfiguracja AI")
-        self.geometry("620x430")
-        self.minsize(560, 400)
+        self.geometry("660x510")
+        self.minsize(600, 470)
         self.result: dict | None = None
 
         body = ttk.Frame(self, padding=16)
@@ -66,33 +67,46 @@ class AiConfigDialog(Toplevel):
             ],
         ).grid(row=2, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Host Ollama").grid(row=3, column=0, sticky=W, pady=4)
-        self.host_var = StringVar(value=settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST))
-        ttk.Entry(body, textvariable=self.host_var).grid(row=3, column=1, sticky="ew", pady=4)
+        ttk.Label(body, text="Klucz OpenRouter").grid(row=3, column=0, sticky=W, pady=4)
+        key_row = ttk.Frame(body)
+        key_row.grid(row=3, column=1, sticky="ew", pady=4)
+        key_row.columnconfigure(0, weight=1)
+        self.api_key_var = StringVar(value=ai.load_stored_api_key())
+        self.key_entry = ttk.Entry(key_row, textvariable=self.api_key_var, show="*")
+        self.key_entry.grid(row=0, column=0, sticky="ew")
+        self.show_key = BooleanVar(value=False)
+        ttk.Checkbutton(key_row, text="Pokaż", variable=self.show_key, command=self._toggle_key).grid(
+            row=0, column=1, padx=(6, 0)
+        )
+        ttk.Button(key_row, text="Wyczyść", command=self._clear_key).grid(row=0, column=2, padx=(6, 0))
 
-        ttk.Label(body, text="Model Ollama").grid(row=4, column=0, sticky=W, pady=4)
+        ttk.Label(body, text="Host Ollama").grid(row=4, column=0, sticky=W, pady=4)
+        self.host_var = StringVar(value=settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST))
+        ttk.Entry(body, textvariable=self.host_var).grid(row=4, column=1, sticky="ew", pady=4)
+
+        ttk.Label(body, text="Model Ollama").grid(row=5, column=0, sticky=W, pady=4)
         self.ollama_model_var = StringVar(value=settings.get("ollama_model", ai.OLLAMA_DEFAULT_MODEL))
         self.ollama_box = ttk.Combobox(body, textvariable=self.ollama_model_var, values=[])
-        self.ollama_box.grid(row=4, column=1, sticky="ew", pady=4)
+        self.ollama_box.grid(row=5, column=1, sticky="ew", pady=4)
 
         ttk.Button(body, text="Wykryj modele Ollama", command=self.detect_models).grid(
-            row=5, column=1, sticky=W, pady=(0, 8)
+            row=6, column=1, sticky=W, pady=(0, 8)
         )
 
-        ttk.Label(body, text="Język tłumaczeń").grid(row=6, column=0, sticky=W, pady=4)
+        ttk.Label(body, text="Język tłumaczeń").grid(row=7, column=0, sticky=W, pady=4)
         self.lang_var = StringVar(value=settings.get("translate_language", "angielski"))
         ttk.Combobox(
             body,
             textvariable=self.lang_var,
             values=ai.TRANSLATE_LANGUAGES,
             state="readonly",
-        ).grid(row=6, column=1, sticky="ew", pady=4)
+        ).grid(row=7, column=1, sticky="ew", pady=4)
 
         self.hint = ttk.Label(body, text="", wraplength=560, justify="left")
-        self.hint.grid(row=7, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        self.hint.grid(row=8, column=0, columnspan=2, sticky="ew", pady=(12, 0))
 
         buttons = ttk.Frame(body)
-        buttons.grid(row=8, column=0, columnspan=2, sticky="e", pady=(16, 0))
+        buttons.grid(row=9, column=0, columnspan=2, sticky="e", pady=(16, 0))
         ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side="right", padx=(8, 0))
         ttk.Button(buttons, text="Zapisz", command=self.save).pack(side="right")
 
@@ -107,16 +121,29 @@ class AiConfigDialog(Toplevel):
                 return key
         return ai.ENGINE_OLLAMA
 
+    def _toggle_key(self) -> None:
+        self.key_entry.configure(show="" if self.show_key.get() else "*")
+
+    def _clear_key(self) -> None:
+        self.api_key_var.set("")
+
     def _update_hint(self) -> None:
         if self._engine_key() == ai.ENGINE_OPENROUTER:
-            has_key = bool(ai.openrouter_api_key())
-            state = "wykryty" if has_key else "BRAK"
+            source = ai.api_key_source()
+            if source == "env":
+                state = f"wykryty ze zmiennej {ai.OPENROUTER_API_KEY_ENV} (ma pierwszeństwo)"
+            elif source == "plik":
+                state = "zapisany w ustawieniach"
+            else:
+                state = "BRAK"
             self.hint.configure(
                 text=(
                     f"OpenRouter — klucz API: {state}.\n"
-                    f"Klucz czytany jest ze zmiennej środowiskowej {ai.OPENROUTER_API_KEY_ENV} "
-                    "(nie zapisujemy go w pliku danych). Zdobądź go na https://openrouter.ai/keys, "
-                    "ustaw zmienną i uruchom PrompBase ponownie."
+                    "Klucz możesz wpisać powyżej (zapisujemy go w osobnym pliku "
+                    f"{ai.api_key_file().name} w folderze danych, poza promptbase.json — "
+                    "dzięki temu nie trafia do kopii zapasowych ani eksportu do chmury).\n"
+                    f"Alternatywnie ustaw zmienną środowiskową {ai.OPENROUTER_API_KEY_ENV}. "
+                    "Klucz zdobędziesz na https://openrouter.ai/keys"
                 )
             )
         else:
@@ -144,6 +171,8 @@ class AiConfigDialog(Toplevel):
         messagebox.showinfo(APP_NAME, f"Znaleziono modeli: {len(models)}", parent=self)
 
     def save(self) -> None:
+        # Klucz zapisujemy osobno — nigdy w promptbase.json.
+        ai.save_stored_api_key(self.api_key_var.get())
         self.result = {
             "engine": self._engine_key(),
             "openrouter_model": self.or_model_var.get().strip() or ai.OPENROUTER_DEFAULT_MODEL,
