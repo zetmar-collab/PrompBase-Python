@@ -23,6 +23,7 @@ from tkinter import (
 )
 
 from pbcore.core import *  # noqa: F401,F403
+from pbcore.i18n import t
 from pbcore.models import *  # noqa: F401,F403
 
 
@@ -30,7 +31,7 @@ class PwaImportDialog(Toplevel):
     def __init__(self, parent: Tk, *, theme_getter=None):
         super().__init__(parent)
         self.theme_getter = theme_getter
-        self.title("Import z PrompBase PWA")
+        self.title(t('Import z PrompBase PWA'))
         self.geometry("720x520")
         self.minsize(600, 440)
         self.imported: list[Prompt] | None = None
@@ -45,11 +46,7 @@ class PwaImportDialog(Toplevel):
         ttk.Label(
             body,
             text=(
-                "Masz bibliotekę w starej wersji przeglądarkowej (PWA)?\n\n"
-                "1. Otwórz PrompBase w Chrome lub Edge.\n"
-                "2. Naciśnij F12 → zakładka Console (Konsola).\n"
-                "3. Kliknij „Kopiuj polecenie” poniżej, wklej w konsoli Enter.\n"
-                "4. Wklej skopiowany JSON tutaj (Ctrl+V) lub wczytaj plik .json."
+                t('Masz bibliotekę w starej wersji przeglądarkowej (PWA)?\n\n1. Otwórz PrompBase w Chrome lub Edge.\n2. Naciśnij F12 → zakładka Console (Konsola).\n3. Kliknij „Kopiuj polecenie” poniżej, wklej w konsoli Enter.\n4. Wklej skopiowany JSON tutaj (Ctrl+V) lub wczytaj plik .json.')
             ),
             wraplength=660,
             justify=LEFT,
@@ -57,9 +54,9 @@ class PwaImportDialog(Toplevel):
 
         toolbar = ttk.Frame(body)
         toolbar.grid(row=1, column=0, sticky="ew", pady=(0, 8))
-        ttk.Button(toolbar, text="Kopiuj polecenie do konsoli", command=self.copy_console_command).pack(side=LEFT, padx=(0, 6))
-        ttk.Button(toolbar, text="Wczytaj plik JSON...", command=self.load_file).pack(side=LEFT, padx=(0, 6))
-        ttk.Button(toolbar, text="Pełna instrukcja", command=self.open_full_guide).pack(side=LEFT)
+        ttk.Button(toolbar, text=t('Kopiuj polecenie do konsoli'), command=self.copy_console_command).pack(side=LEFT, padx=(0, 6))
+        ttk.Button(toolbar, text=t('Wczytaj plik JSON...'), command=self.load_file).pack(side=LEFT, padx=(0, 6))
+        ttk.Button(toolbar, text=t('Pełna instrukcja'), command=self.open_full_guide).pack(side=LEFT)
 
         from tkinter import Text
 
@@ -70,8 +67,8 @@ class PwaImportDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=3, column=0, sticky="e", pady=(12, 0))
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Importuj", command=self.do_import).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Importuj'), command=self.do_import).pack(side=LEFT, padx=4)
 
         self.bind("<Escape>", lambda _event: self.destroy())
         self.transient(parent)
@@ -84,10 +81,9 @@ class PwaImportDialog(Toplevel):
         self.update()
         messagebox.showinfo(
             APP_NAME,
-            "Skopiowano do schowka:\n\n"
-            f"{cmd}\n\n"
-            "Wklej w konsoli przeglądarki (F12) i naciśnij Enter.\n"
-            "Potem wklej wynik w pole poniżej.",
+            t("Skopiowano do schowka:\n\n")
+            + cmd
+            + t("\n\nWklej w konsoli przeglądarki (F12) i naciśnij Enter.\nPotem wklej wynik w pole poniżej."),
             parent=self,
         )
 
@@ -100,7 +96,7 @@ class PwaImportDialog(Toplevel):
     def load_file(self) -> None:
         path = filedialog.askopenfilename(
             parent=self,
-            title="Wybierz eksport PWA",
+            title=t('Wybierz eksport PWA'),
             filetypes=[("JSON", "*.json"), ("Wszystkie pliki", "*.*")],
         )
         if not path:
@@ -108,7 +104,7 @@ class PwaImportDialog(Toplevel):
         try:
             raw = Path(path).read_text(encoding="utf-8-sig")
         except OSError as exc:
-            messagebox.showerror(APP_NAME, f"Nie można odczytać pliku:\n{exc}", parent=self)
+            messagebox.showerror(APP_NAME, (str(t('Nie można odczytać pliku:\n')) + str(exc)), parent=self)
             return
         self.paste_text.delete("1.0", END)
         self.paste_text.insert("1.0", raw)
@@ -116,17 +112,17 @@ class PwaImportDialog(Toplevel):
     def do_import(self) -> None:
         raw = self.paste_text.get("1.0", END).strip()
         if not raw:
-            messagebox.showwarning(APP_NAME, "Wklej dane z localStorage lub wczytaj plik JSON.", parent=self)
+            messagebox.showwarning(APP_NAME, t('Wklej dane z localStorage lub wczytaj plik JSON.'), parent=self)
             return
         try:
             data = json.loads(raw)
             prompts, n8n_url, theme = prompts_from_pwa_data(data)
         except json.JSONDecodeError as exc:
-            messagebox.showerror(APP_NAME, f"Nieprawidłowy JSON:\n{exc}", parent=self)
+            messagebox.showerror(APP_NAME, (str(t('Nieprawidłowy JSON:\n')) + str(exc)), parent=self)
             return
         valid = [p for p in prompts if p.name and p.content]
         if not valid:
-            messagebox.showwarning(APP_NAME, "Nie znaleziono poprawnych promptów w danych PWA.", parent=self)
+            messagebox.showwarning(APP_NAME, t('Nie znaleziono poprawnych promptów w danych PWA.'), parent=self)
             return
         self.imported = valid
         self.n8n_url = n8n_url
@@ -140,7 +136,7 @@ class HistoryDialog(Toplevel):
         self.prompt = prompt
         self.theme_getter = theme_getter
         self.restored = False
-        self.title(f"Historia — {prompt.name}")
+        self.title(f"{t('Historia — ')}{prompt.name}")
         self.geometry("760x520")
         self.minsize(620, 420)
 
@@ -149,7 +145,7 @@ class HistoryDialog(Toplevel):
         body.columnconfigure(1, weight=1)
         body.rowconfigure(1, weight=1)
 
-        ttk.Label(body, text="Wersje (najnowsza na górze):", style="Stat.TLabel").grid(row=0, column=0, columnspan=2, sticky=W)
+        ttk.Label(body, text=t('Wersje (najnowsza na górze):'), style="Stat.TLabel").grid(row=0, column=0, columnspan=2, sticky=W)
 
         self.version_list = Listbox(body, height=8, activestyle="dotbox", exportselection=False)
         self.version_list.grid(row=1, column=0, sticky="nsw", padx=(0, 10))
@@ -174,8 +170,8 @@ class HistoryDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=2, column=0, columnspan=2, sticky="e", pady=(12, 0))
-        ttk.Button(buttons, text="Zamknij", command=self.destroy).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Przywróć zaznaczoną", command=self.restore).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Zamknij'), command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Przywróć zaznaczoną'), command=self.restore).pack(side=LEFT, padx=4)
 
         self.bind("<Escape>", lambda _event: self.destroy())
         self.transient(parent)
@@ -201,13 +197,13 @@ class HistoryDialog(Toplevel):
     def restore(self) -> None:
         selection = self.version_list.curselection()
         if not selection:
-            messagebox.showinfo(APP_NAME, "Wybierz wersję do przywrócenia.", parent=self)
+            messagebox.showinfo(APP_NAME, t('Wybierz wersję do przywrócenia.'), parent=self)
             return
         entry = self.prompt.history[selection[0]]
         if not messagebox.askyesno(
             APP_NAME,
-            f"Przywrócić wersję z {format_date(entry.get('saved_at'))}?\n"
-            "Obecna treść zostanie zapisana w historii.",
+            f"{t('Przywrócić wersję z ')}{format_date(entry.get('saved_at'))}"
+            + t("?\nObecna treść zostanie zapisana w historii."),
             parent=self,
         ):
             return
@@ -238,7 +234,7 @@ class FillVariablesDialog(Toplevel):
 
         ttk.Label(
             body,
-            text="Prompt zawiera pola w nawiasach [TEMAT], [TEKST] itd.\nUzupełnij je przed skopiowaniem:",
+            text=t('Prompt zawiera pola w nawiasach [TEMAT], [TEKST] itd.\nUzupełnij je przed skopiowaniem:'),
             wraplength=460,
         ).grid(row=0, column=0, columnspan=2, sticky=W, pady=(0, 12))
 
@@ -251,8 +247,8 @@ class FillVariablesDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=len(self.placeholders) + 1, column=0, columnspan=2, sticky="e", pady=(14, 0))
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Kopiuj uzupełniony", command=self.apply).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Kopiuj uzupełniony'), command=self.apply).pack(side=LEFT, padx=4)
 
         self._source_content = content
         self.bind("<Escape>", lambda _event: self.destroy())
@@ -265,7 +261,7 @@ class FillVariablesDialog(Toplevel):
         if missing:
             messagebox.showwarning(
                 APP_NAME,
-                f"Uzupełnij pola: {', '.join(missing)}",
+                f"{t('Uzupełnij pola: ')}{', '.join(missing)}",
                 parent=self,
             )
             return
@@ -305,7 +301,7 @@ class OnboardingDialog(Toplevel):
         super().__init__(parent)
         self.on_finish = on_finish
         self.step_index = 0
-        self.title("PrompBase — szybki start")
+        self.title(t('PrompBase — szybki start'))
         self.geometry("560x340")
         self.minsize(480, 300)
         self.resizable(False, False)
@@ -323,9 +319,9 @@ class OnboardingDialog(Toplevel):
 
         nav = ttk.Frame(body)
         nav.grid(row=2, column=0, sticky="ew", pady=(16, 0))
-        self.back_btn = ttk.Button(nav, text="Wstecz", command=self.prev_step)
+        self.back_btn = ttk.Button(nav, text=t('Wstecz'), command=self.prev_step)
         self.back_btn.pack(side=LEFT)
-        self.next_btn = ttk.Button(nav, text="Dalej", style="Accent.TButton", command=self.next_step)
+        self.next_btn = ttk.Button(nav, text=t('Dalej'), style="Accent.TButton", command=self.next_step)
         self.next_btn.pack(side=RIGHT)
 
         self._render_step()
@@ -365,7 +361,7 @@ class CloudExportDialog(Toplevel):
         super().__init__(parent)
         self.store = store
         self.exported_path: Path | None = None
-        self.title("Eksport do chmury")
+        self.title(t('Eksport do chmury'))
         self.geometry("640x320")
         self.minsize(560, 280)
 
@@ -379,8 +375,8 @@ class CloudExportDialog(Toplevel):
         ttk.Label(
             body,
             text=(
-                "Kopia trafia do folderu synchronizowanego z chmurą\n"
-                f"(podfolder {CLOUD_SUBDIR}/). Wymagany Google Drive Desktop lub OneDrive."
+                t("Kopia trafia do folderu synchronizowanego z chmurą\n(podfolder ")
+                + f"{CLOUD_SUBDIR}{t('/). Wymagany Google Drive Desktop lub OneDrive.')}"
             ),
             wraplength=580,
         ).grid(row=0, column=0, columnspan=3, sticky=W, pady=(0, 12))
@@ -396,9 +392,9 @@ class CloudExportDialog(Toplevel):
             ).grid(row=row, column=0, sticky=W, pady=2)
             row += 1
 
-        ttk.Label(body, text="Folder synchronizacji").grid(row=row, column=0, sticky=W, pady=(10, 4))
+        ttk.Label(body, text=t('Folder synchronizacji')).grid(row=row, column=0, sticky=W, pady=(10, 4))
         ttk.Entry(body, textvariable=self.path_var).grid(row=row, column=1, sticky="ew", pady=(10, 4), padx=(0, 8))
-        ttk.Button(body, text="Wybierz…", command=self.browse_folder).grid(row=row, column=2, pady=(10, 4))
+        ttk.Button(body, text=t('Wybierz…'), command=self.browse_folder).grid(row=row, column=2, pady=(10, 4))
         row += 1
 
         self.hint = ttk.Label(body, text="", style="Muted.TLabel", wraplength=580)
@@ -407,8 +403,8 @@ class CloudExportDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=row, column=0, columnspan=3, sticky="e", pady=(16, 0))
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Eksportuj teraz", command=self.export).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Eksportuj teraz'), command=self.export).pack(side=LEFT, padx=4)
 
         self._sync_path_field()
         self.bind("<Escape>", lambda _event: self.destroy())
@@ -420,12 +416,12 @@ class CloudExportDialog(Toplevel):
         current = self.store.cloud_folders.get(provider) or detect_cloud_folder(provider)
         self.path_var.set(current)
         if current:
-            self.hint.configure(text=f"Plik zostanie zapisany w: {Path(current) / CLOUD_SUBDIR}")
+            self.hint.configure(text=f"{t('Plik zostanie zapisany w: ')}{Path(current) / CLOUD_SUBDIR}")
         else:
-            self.hint.configure(text="Nie wykryto folderu — wybierz ręcznie katalog synchronizacji.")
+            self.hint.configure(text=t('Nie wykryto folderu — wybierz ręcznie katalog synchronizacji.'))
 
     def browse_folder(self) -> None:
-        path = filedialog.askdirectory(parent=self, title="Wybierz folder Google Drive / OneDrive")
+        path = filedialog.askdirectory(parent=self, title=t('Wybierz folder Google Drive / OneDrive'))
         if path:
             self.path_var.set(path)
 
@@ -433,11 +429,11 @@ class CloudExportDialog(Toplevel):
         provider = self.provider_var.get()
         folder = self.path_var.get().strip()
         if not folder:
-            messagebox.showerror(APP_NAME, "Wybierz folder synchronizacji chmury.", parent=self)
+            messagebox.showerror(APP_NAME, t('Wybierz folder synchronizacji chmury.'), parent=self)
             return
         root = Path(folder)
         if not root.is_dir():
-            messagebox.showerror(APP_NAME, "Podany folder nie istnieje.", parent=self)
+            messagebox.showerror(APP_NAME, t('Podany folder nie istnieje.'), parent=self)
             return
 
         self.store.cloud_folders[provider] = folder
@@ -456,7 +452,7 @@ class CloudExportDialog(Toplevel):
         self.exported_path = target
         messagebox.showinfo(
             APP_NAME,
-            f"Zapisano w chmurze (folder synchronizacji):\n\n{target}\n{csv_target}",
+            (str(t('Zapisano w chmurze (folder synchronizacji):\n\n')) + str(target) + '\n' + str(csv_target)),
             parent=self,
         )
         self.destroy()
@@ -529,20 +525,20 @@ class PromptDialog(Toplevel):
         body.columnconfigure(1, weight=1)
         body.rowconfigure(7, weight=1)
 
-        ttk.Label(body, text="Nazwa").grid(row=0, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Nazwa')).grid(row=0, column=0, sticky=W, pady=4)
         ttk.Entry(body, textvariable=self.name_var).grid(row=0, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Status").grid(row=1, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Status')).grid(row=1, column=0, sticky=W, pady=4)
         ttk.Combobox(body, textvariable=self.status_var, values=list(STATUSES.values()), state="readonly").grid(
             row=1, column=1, sticky="ew", pady=4
         )
 
-        ttk.Label(body, text="Format").grid(row=2, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Format')).grid(row=2, column=0, sticky=W, pady=4)
         ttk.Combobox(body, textvariable=self.format_var, values=FORMATS, state="readonly").grid(
             row=2, column=1, sticky="ew", pady=4
         )
 
-        ttk.Label(body, text="Model AI").grid(row=3, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Model AI')).grid(row=3, column=0, sticky=W, pady=4)
         model_row = ttk.Frame(body)
         model_row.grid(row=3, column=1, sticky="ew", pady=4)
         model_row.columnconfigure(0, weight=1)
@@ -563,7 +559,7 @@ class PromptDialog(Toplevel):
                 command=lambda platform=name: self._open_platform(platform),
             ).grid(row=0, column=col, padx=(0, 4))
 
-        ttk.Label(body, text="Zastosowanie").grid(row=4, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Zastosowanie')).grid(row=4, column=0, sticky=W, pady=4)
         ttk.Combobox(
             body,
             textvariable=self.zastosowanie_var,
@@ -571,19 +567,19 @@ class PromptDialog(Toplevel):
             state="normal",
         ).grid(row=4, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Tagi").grid(row=5, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Tagi')).grid(row=5, column=0, sticky=W, pady=4)
         ttk.Combobox(
             body,
             textvariable=self.tags_var,
             values=self.tag_options,
             state="normal",
         ).grid(row=5, column=1, sticky="ew", pady=4)
-        ttk.Label(body, text="(po przecinku)", style="Muted.TLabel").grid(row=5, column=2, sticky=W, padx=(6, 0))
+        ttk.Label(body, text=t('(po przecinku)'), style="Muted.TLabel").grid(row=5, column=2, sticky=W, padx=(6, 0))
 
-        ttk.Label(body, text="Komentarz").grid(row=6, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Komentarz')).grid(row=6, column=0, sticky=W, pady=4)
         ttk.Entry(body, textvariable=self.comment_var).grid(row=6, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Treść").grid(row=7, column=0, sticky="nw", pady=4)
+        ttk.Label(body, text=t('Treść')).grid(row=7, column=0, sticky="nw", pady=4)
         text_frame = ttk.Frame(body)
         text_frame.grid(row=7, column=1, sticky="nsew", pady=4)
         text_frame.rowconfigure(0, weight=1)
@@ -600,10 +596,10 @@ class PromptDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=8, column=0, columnspan=2, sticky="e", pady=(14, 0))
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side=LEFT, padx=4)
         if prompt and prompt.history:
-            ttk.Button(buttons, text="Historia…", command=self._open_history).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Zapisz", command=self.save).pack(side=LEFT, padx=4)
+            ttk.Button(buttons, text=t('Historia…'), command=self._open_history).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Zapisz'), command=self.save).pack(side=LEFT, padx=4)
 
         self.bind("<Escape>", lambda _event: self.destroy())
         self.bind("<Control-s>", lambda _event: self.save())
@@ -627,10 +623,10 @@ class PromptDialog(Toplevel):
         name = self.name_var.get().strip()
         content = self.content_text.get("1.0", END).strip()
         if not name:
-            messagebox.showerror(APP_NAME, "Podaj nazwę promptu.", parent=self)
+            messagebox.showerror(APP_NAME, t('Podaj nazwę promptu.'), parent=self)
             return
         if not content:
-            messagebox.showerror(APP_NAME, "Wklej treść promptu.", parent=self)
+            messagebox.showerror(APP_NAME, t('Wklej treść promptu.'), parent=self)
             return
 
         prompt = self.original or Prompt(name=name, content=content)
@@ -669,7 +665,7 @@ class N8nConfigDialog(Toplevel):
     def __init__(self, parent: Tk, current_url: str, *, post_json=None):
         super().__init__(parent)
         self._post_json = post_json
-        self.title("Konfiguracja n8n")
+        self.title(t('Konfiguracja n8n'))
         self.geometry("620x220")
         self.minsize(520, 200)
         self.saved_url: str | None = None
@@ -681,7 +677,7 @@ class N8nConfigDialog(Toplevel):
 
         ttk.Label(
             body,
-            text="URL webhooka n8n (węzeł Webhook → Production URL):",
+            text=t('URL webhooka n8n (węzeł Webhook → Production URL):'),
             wraplength=560,
         ).grid(row=0, column=0, sticky=W, pady=(0, 6))
         entry = ttk.Entry(body, textvariable=self.url_var)
@@ -691,9 +687,9 @@ class N8nConfigDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=3, column=0, sticky="e")
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Testuj", command=self.test).pack(side=LEFT, padx=4)
-        ttk.Button(buttons, text="Zapisz", command=self.save).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Testuj'), command=self.test).pack(side=LEFT, padx=4)
+        ttk.Button(buttons, text=t('Zapisz'), command=self.save).pack(side=LEFT, padx=4)
 
         self.url_var.trace_add("write", lambda *_: self._update_hint())
         self._update_hint()
@@ -705,33 +701,33 @@ class N8nConfigDialog(Toplevel):
     def _update_hint(self) -> None:
         url = normalize_n8n_url(self.url_var.get())
         if not url:
-            self.hint_label.configure(text="Przykład: https://twoja-instancja.app.n8n.cloud/webhook/prompbase")
+            self.hint_label.configure(text=t('Przykład: https://twoja-instancja.app.n8n.cloud/webhook/prompbase'))
             return
         if validate_n8n_url(url):
-            self.hint_label.configure(text="✓ Adres wygląda poprawnie (http/https + /webhook/).")
+            self.hint_label.configure(text=t('✓ Adres wygląda poprawnie (http/https + /webhook/).'))
         else:
-            self.hint_label.configure(text="✗ Wymagany pełny URL z fragmentem /webhook/ w ścieżce.")
+            self.hint_label.configure(text=t('✗ Wymagany pełny URL z fragmentem /webhook/ w ścieżce.'))
 
     def test(self) -> None:
         url = normalize_n8n_url(self.url_var.get())
         if not validate_n8n_url(url):
-            messagebox.showerror(APP_NAME, "Podaj poprawny URL webhooka przed testem.", parent=self)
+            messagebox.showerror(APP_NAME, t('Podaj poprawny URL webhooka przed testem.'), parent=self)
             return
         payload = n8n_envelope(
             "test",
-            message="Test połączenia z Biblioteki Promptów AI (PrompBase Python)",
+            message=t('Test połączenia z Biblioteki Promptów AI (PrompBase Python)'),
         )
         if self._post_json:
             self._post_json(url, payload, "Test webhooka n8n zakończony pomyślnie.")
         else:
-            messagebox.showinfo(APP_NAME, "Test wymaga uruchomionej aplikacji PrompBase.", parent=self)
+            messagebox.showinfo(APP_NAME, t('Test wymaga uruchomionej aplikacji PrompBase.'), parent=self)
 
     def save(self) -> None:
         url = normalize_n8n_url(self.url_var.get())
         if url and not validate_n8n_url(url):
             messagebox.showerror(
                 APP_NAME,
-                "Nieprawidłowy URL webhooka.\n\nUżyj adresu Production URL z węzła Webhook w n8n.",
+                t('Nieprawidłowy URL webhooka.\n\nUżyj adresu Production URL z węzła Webhook w n8n.'),
                 parent=self,
             )
             return

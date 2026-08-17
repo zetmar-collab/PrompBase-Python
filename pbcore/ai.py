@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
 
+from pbcore import i18n
 from pbcore.core import APP_NAME, APP_VERSION, app_data_dir
 
 # --- konfiguracja silników -------------------------------------------------
@@ -80,7 +81,48 @@ ADAPT_TARGETS = {
     ),
 }
 
+# Angielskie odpowiedniki charakterystyk platform — używane, gdy UI działa
+# po angielsku, żeby model dostawał instrukcje w jednym języku.
+ADAPT_TARGETS_EN = {
+    "ChatGPT": (
+        "Optimise for ChatGPT (OpenAI): a clear system role, concrete "
+        "step-by-step instructions, an explicit output format."
+    ),
+    "Claude": (
+        "Optimise for Claude (Anthropic): readable structure with sections, "
+        "XML tags for blocks (e.g. <context>, <task>), explicit rules."
+    ),
+    "Gemini": (
+        "Optimise for Gemini (Google): concise context up front, a precise "
+        "instruction, a clearly stated expected result."
+    ),
+    "Midjourney": (
+        "Turn this into a Midjourney image prompt: describe the scene as "
+        "comma-separated phrases, style, lighting, composition, quality; "
+        "put parameters at the end (e.g. --ar 16:9 --v 6). No imperative sentences."
+    ),
+    "Perplexity": (
+        "Optimise for Perplexity: a research-oriented, precise question "
+        "aimed at sources and facts."
+    ),
+    "Copilot": (
+        "Optimise for GitHub Copilot: technical context, programming "
+        "language, expected API and code style."
+    ),
+}
+
 TRANSLATE_LANGUAGES = ["angielski", "polski", "niemiecki", "hiszpański", "francuski"]
+TRANSLATE_LANGUAGES_EN = ["English", "Polish", "German", "Spanish", "French"]
+
+# Nazwy języków docelowych podajemy modelowi po angielsku, gdy UI jest po
+# angielsku — inaczej instrukcja mieszałaby dwa języki.
+_LANGUAGE_TO_EN = {
+    "angielski": "English",
+    "polski": "Polish",
+    "niemiecki": "German",
+    "hiszpański": "Spanish",
+    "francuski": "French",
+}
 
 # Wspólna zasada dla wszystkich akcji — model ma zwrócić sam prompt.
 _BASE_RULES = (
@@ -90,9 +132,46 @@ _BASE_RULES = (
     "dokładnie w niezmienionej formie."
 )
 
+_BASE_RULES_EN = (
+    "You are an expert prompt engineer. Return ONLY the finished prompt, "
+    "with no commentary, no explanations and no surrounding code fences. "
+    "Keep every square-bracket variable (e.g. [TEMAT]) exactly unchanged."
+)
 
-def build_system_prompt(action: str, *, target: str = "", language: str = "") -> str:
-    """Instrukcja systemowa dla wybranej akcji AI."""
+
+def build_system_prompt(
+    action: str,
+    *,
+    target: str = "",
+    language: str = "",
+    ui_language: str = "",
+) -> str:
+    """Instrukcja systemowa dla wybranej akcji AI.
+
+    `ui_language` decyduje o języku samej instrukcji: przy "en" model dostaje
+    prompt systemowy po angielsku. Domyślnie bierzemy język interfejsu.
+    """
+    lang_ui = ui_language or i18n.get_language()
+    english = lang_ui == i18n.LANG_EN
+
+    if english:
+        if action == ACTION_TRANSLATE:
+            raw = (language or "English").strip()
+            lang = _LANGUAGE_TO_EN.get(raw, raw)
+            return (
+                f"{_BASE_RULES_EN} Translate the prompt below into: {lang}. "
+                "Preserve the meaning, tone and structure of the original."
+            )
+        if action == ACTION_ADAPT:
+            name = (target or "ChatGPT").strip()
+            hint = ADAPT_TARGETS_EN.get(name, f"Optimise for the {name} platform.")
+            return f"{_BASE_RULES_EN} {hint}"
+        return (
+            f"{_BASE_RULES_EN} Improve the prompt below: sharpen the role and goal, "
+            "add missing context, define the response format and reduce ambiguity. "
+            "Do not change the language of the original."
+        )
+
     if action == ACTION_TRANSLATE:
         lang = (language or "angielski").strip()
         return (
@@ -109,6 +188,21 @@ def build_system_prompt(action: str, *, target: str = "", language: str = "") ->
         "brakujący kontekst, określ format odpowiedzi i ogranicz "
         "dwuznaczności. Nie zmieniaj języka oryginału."
     )
+
+
+def translate_languages() -> list[str]:
+    """Lista języków tłumaczenia w języku interfejsu."""
+    return list(TRANSLATE_LANGUAGES_EN if i18n.is_english() else TRANSLATE_LANGUAGES)
+
+
+def action_labels() -> dict[str, str]:
+    """Etykiety akcji AI w języku interfejsu."""
+    return {key: i18n.t(label) for key, label in AI_ACTIONS.items()}
+
+
+def engine_labels() -> dict[str, str]:
+    """Nazwy silników w języku interfejsu."""
+    return {key: i18n.t(label) for key, label in ENGINES.items()}
 
 
 def clean_ai_output(text: str) -> str:

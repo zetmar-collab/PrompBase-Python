@@ -31,17 +31,18 @@ from tkinter import (
 from urllib import request
 from urllib.error import HTTPError, URLError
 
-from pbcore import ai
+from pbcore import ai, i18n
 from pbcore.ai_dialogs import AiConfigDialog, AiResultDialog
 from pbcore.core import *  # noqa: F401,F403
 from pbcore.dialogs import *  # noqa: F401,F403
+from pbcore.i18n import t
 from pbcore.models import *  # noqa: F401,F403
 
 
 class PrompBaseApp:
     def __init__(self, root: Tk):
         self.root = root
-        self.root.title(f"{APP_NAME} - Biblioteka Promptów AI")
+        self.root.title(f"{APP_NAME}{t(' - Biblioteka Promptów AI')}")
         self.root.geometry("1180x760")
         self.root.minsize(980, 620)
         self._set_window_icon()
@@ -58,6 +59,7 @@ class PrompBaseApp:
         self.sort_var = StringVar(value="Najnowsze")
         self.favorites_only = BooleanVar(value=False)
         self.theme_var = StringVar(value=self.store.theme)
+        self.language_var = StringVar(value=self.store.language)
         self._themed_text_widgets: list = []
 
         self._configure_style()
@@ -152,88 +154,121 @@ class PrompBaseApp:
         if save:
             self.store.theme = theme_name
             self.store.save()
-            self.set_status(f"Motyw zmieniony: {theme_name}.")
+            self.set_status(f"{t('Motyw zmieniony: ')}{theme_name}{t('.')}")
+
+    def apply_language(self) -> None:
+        """Przełącza język UI natychmiast dla menu i przyszłych okien.
+
+        Statyczne widżety zbudowane raz przy starcie (etykiety, przyciski,
+        nagłówki listy) NIE są przebudowywane na żywo — restart w pełni
+        stosuje zmianę. Menu jest budowane od nowa (tanie, więc robimy to
+        zawsze), a każde NOWO otwierane okno dialogowe już użyje nowego
+        języka, bo woła t() dopiero przy konstrukcji.
+        """
+        lang = self.language_var.get()
+        i18n.set_language(lang)
+        self.store.language = i18n.get_language()
+        self.store.save()
+        self._build_menu()
+        messagebox.showinfo(
+            APP_NAME,
+            t(
+                "Język zmieniony. Uruchom ponownie PrompBase, aby zastosować "
+                "zmianę we wszystkich oknach."
+            ),
+            parent=self.root,
+        )
 
     def _build_menu(self) -> None:
         menu = Menu(self.root)
         file_menu = Menu(menu, tearoff=False)
-        file_menu.add_command(label="Nowy prompt", accelerator="Ctrl+N", command=self.new_prompt)
-        file_menu.add_command(label="Import CSV...", command=self.import_csv)
-        file_menu.add_command(label="Import z PWA (przeglądarka)...", command=self.import_from_pwa)
-        file_menu.add_command(label="Instrukcja importu PWA", command=self.open_pwa_import_guide)
-        file_menu.add_command(label="Eksport CSV...", command=self.export_csv)
+        file_menu.add_command(label=t('Nowy prompt'), accelerator="Ctrl+N", command=self.new_prompt)
+        file_menu.add_command(label=t('Import CSV...'), command=self.import_csv)
+        file_menu.add_command(label=t('Import z PWA (przeglądarka)...'), command=self.import_from_pwa)
+        file_menu.add_command(label=t('Instrukcja importu PWA'), command=self.open_pwa_import_guide)
+        file_menu.add_command(label=t('Eksport CSV...'), command=self.export_csv)
         file_menu.add_separator()
-        file_menu.add_command(label="Kopia zapasowa JSON...", command=self.export_backup_json)
-        file_menu.add_command(label="Przywróć z JSON...", command=self.import_backup_json)
-        file_menu.add_command(label="Eksport dla PWA (przeglądarka)...", command=self.export_for_pwa)
-        file_menu.add_command(label="Eksport do chmury (Drive / OneDrive)...", command=self.export_to_cloud)
+        file_menu.add_command(label=t('Kopia zapasowa JSON...'), command=self.export_backup_json)
+        file_menu.add_command(label=t('Przywróć z JSON...'), command=self.import_backup_json)
+        file_menu.add_command(label=t('Eksport dla PWA (przeglądarka)...'), command=self.export_for_pwa)
+        file_menu.add_command(label=t('Eksport do chmury (Drive / OneDrive)...'), command=self.export_to_cloud)
         file_menu.add_separator()
-        file_menu.add_command(label="Szybki import pliku CSV/JSON...", command=self.quick_import_file)
+        file_menu.add_command(label=t('Szybki import pliku CSV/JSON...'), command=self.quick_import_file)
         file_menu.add_separator()
-        file_menu.add_command(label="Pokaż plik danych", command=self.show_data_path)
-        file_menu.add_command(label="Otwórz folder danych", command=self.open_data_folder)
+        file_menu.add_command(label=t('Pokaż plik danych'), command=self.show_data_path)
+        file_menu.add_command(label=t('Otwórz folder danych'), command=self.open_data_folder)
         file_menu.add_separator()
-        file_menu.add_command(label="Zamknij", command=self.root.destroy)
-        menu.add_cascade(label="Plik", menu=file_menu)
+        file_menu.add_command(label=t('Zamknij'), command=self.root.destroy)
+        menu.add_cascade(label=t('Plik'), menu=file_menu)
 
         ai_menu = Menu(menu, tearoff=False)
         for platform_name, _url in AI_PLATFORMS:
             ai_menu.add_command(
-                label=f"Otwórz {platform_name}",
+                label=f"{t('Otwórz ')}{platform_name}",
                 command=lambda name=platform_name: self.open_ai_platform(name, copy_prompt=False),
             )
             ai_menu.add_command(
-                label=f"Kopiuj prompt i otwórz {platform_name}",
+                label=f"{t('Kopiuj prompt i otwórz ')}{platform_name}",
                 command=lambda name=platform_name: self.open_ai_platform(name, copy_prompt=True),
             )
-        menu.add_cascade(label="AI", menu=ai_menu)
+        menu.add_cascade(label=t('AI'), menu=ai_menu)
 
         assistant_menu = Menu(menu, tearoff=False)
         assistant_menu.add_command(
-            label="Ulepsz prompt", accelerator="Ctrl+Shift+I", command=self.ai_improve_selected
+            label=t('Ulepsz prompt'), accelerator="Ctrl+Shift+I", command=self.ai_improve_selected
         )
         assistant_menu.add_command(
-            label="Przetłumacz prompt", accelerator="Ctrl+Shift+T", command=self.ai_translate_selected
+            label=t('Przetłumacz prompt'), accelerator="Ctrl+Shift+T", command=self.ai_translate_selected
         )
         adapt_menu = Menu(assistant_menu, tearoff=False)
         for target in ai.ADAPT_TARGETS:
             adapt_menu.add_command(
-                label=f"Dostosuj do {target}",
+                label=f"{t('Dostosuj do ')}{target}",
                 command=lambda name=target: self.ai_adapt_selected(name),
             )
-        assistant_menu.add_cascade(label="Dostosuj do platformy", menu=adapt_menu)
+        assistant_menu.add_cascade(label=t('Dostosuj do platformy'), menu=adapt_menu)
         assistant_menu.add_separator()
-        assistant_menu.add_command(label="Konfiguracja AI...", command=self.configure_ai)
-        assistant_menu.add_command(label="Status silników AI", command=self.show_ai_status)
-        menu.add_cascade(label="Asystent AI", menu=assistant_menu)
+        assistant_menu.add_command(label=t('Konfiguracja AI...'), command=self.configure_ai)
+        assistant_menu.add_command(label=t('Status silników AI'), command=self.show_ai_status)
+        menu.add_cascade(label=t('Asystent AI'), menu=assistant_menu)
 
         tools_menu = Menu(menu, tearoff=False)
-        tools_menu.add_command(label="Konfiguracja n8n...", command=self.configure_n8n)
-        tools_menu.add_command(label="Testuj webhook n8n", command=self.test_n8n_webhook)
+        tools_menu.add_command(label=t('Konfiguracja n8n...'), command=self.configure_n8n)
+        tools_menu.add_command(label=t('Testuj webhook n8n'), command=self.test_n8n_webhook)
         tools_menu.add_separator()
-        tools_menu.add_command(label="Wyślij zaznaczony do n8n", command=self.send_selected_to_n8n)
-        tools_menu.add_command(label="Synchronizuj bibliotekę do n8n", command=self.sync_all_to_n8n)
-        tools_menu.add_command(label="Eksportuj JSON dla n8n...", command=self.export_n8n_json)
+        tools_menu.add_command(label=t('Wyślij zaznaczony do n8n'), command=self.send_selected_to_n8n)
+        tools_menu.add_command(label=t('Synchronizuj bibliotekę do n8n'), command=self.sync_all_to_n8n)
+        tools_menu.add_command(label=t('Eksportuj JSON dla n8n...'), command=self.export_n8n_json)
         tools_menu.add_separator()
-        tools_menu.add_command(label="Paczki promptów Pro (wkrótce)...", command=self.show_pro_coming_soon)
-        menu.add_cascade(label="Narzędzia", menu=tools_menu)
+        tools_menu.add_command(label=t('Paczki promptów Pro (wkrótce)...'), command=self.show_pro_coming_soon)
+        menu.add_cascade(label=t('Narzędzia'), menu=tools_menu)
 
         view_menu = Menu(menu, tearoff=False)
-        view_menu.add_radiobutton(label="Tryb jasny", variable=self.theme_var, value="jasny", command=self.apply_theme)
-        view_menu.add_radiobutton(label="Tryb ciemny", variable=self.theme_var, value="ciemny", command=self.apply_theme)
-        view_menu.add_radiobutton(label="Motyw grafit", variable=self.theme_var, value="grafit", command=self.apply_theme)
-        menu.add_cascade(label="Widok", menu=view_menu)
+        view_menu.add_radiobutton(label=t('Tryb jasny'), variable=self.theme_var, value="jasny", command=self.apply_theme)
+        view_menu.add_radiobutton(label=t('Tryb ciemny'), variable=self.theme_var, value="ciemny", command=self.apply_theme)
+        view_menu.add_radiobutton(label=t('Motyw grafit'), variable=self.theme_var, value="grafit", command=self.apply_theme)
+        view_menu.add_separator()
+        language_menu = Menu(view_menu, tearoff=False)
+        for lang_code, lang_label in i18n.LANGUAGES.items():
+            language_menu.add_radiobutton(
+                label=lang_label,
+                variable=self.language_var,
+                value=lang_code,
+                command=self.apply_language,
+            )
+        view_menu.add_cascade(label=t("Język"), menu=language_menu)
+        menu.add_cascade(label=t('Widok'), menu=view_menu)
 
         help_menu = Menu(menu, tearoff=False)
-        help_menu.add_command(label="Przewodnik startowy", command=self.show_onboarding)
-        help_menu.add_command(label="Szybki start (PDF/MD)", command=self.open_quickstart_doc)
-        help_menu.add_command(label="Instrukcja importu PWA", command=self.open_pwa_import_guide)
-        help_menu.add_command(label="Pomoc i skróty", accelerator="?", command=self.show_help)
+        help_menu.add_command(label=t('Przewodnik startowy'), command=self.show_onboarding)
+        help_menu.add_command(label=t('Szybki start (PDF/MD)'), command=self.open_quickstart_doc)
+        help_menu.add_command(label=t('Instrukcja importu PWA'), command=self.open_pwa_import_guide)
+        help_menu.add_command(label=t('Pomoc i skróty'), accelerator="?", command=self.show_help)
         help_menu.add_separator()
-        help_menu.add_command(label="Strona produktu", command=self.open_product_page)
-        help_menu.add_command(label="Pobierz najnowszą wersję", command=self.open_download_page)
-        help_menu.add_command(label="Cennik (Free / Pro)", command=self.open_pricing_doc)
-        menu.add_cascade(label="Pomoc", menu=help_menu)
+        help_menu.add_command(label=t('Strona produktu'), command=self.open_product_page)
+        help_menu.add_command(label=t('Pobierz najnowszą wersję'), command=self.open_download_page)
+        help_menu.add_command(label=t('Cennik (Free / Pro)'), command=self.open_pricing_doc)
+        menu.add_cascade(label=t('Pomoc'), menu=help_menu)
         self.root.config(menu=menu)
 
     def _build_ui(self) -> None:
@@ -245,53 +280,53 @@ class PrompBaseApp:
         header = ttk.Frame(main)
         header.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
         header.columnconfigure(0, weight=1)
-        ttk.Label(header, text=f"PrompBase v{APP_VERSION}", style="Header.TLabel").grid(row=0, column=0, sticky=W)
+        ttk.Label(header, text=f"{t('PrompBase v')}{APP_VERSION}", style="Header.TLabel").grid(row=0, column=0, sticky=W)
         ttk.Label(
             header,
-            text="Znajdź prompt · skopiuj · wklej do AI",
+            text=t('Znajdź prompt · skopiuj · wklej do AI'),
             style="Muted.TLabel",
         ).grid(row=1, column=0, sticky=W)
         self.stats_label = ttk.Label(header, text="", style="Muted.TLabel")
         self.stats_label.grid(row=2, column=0, sticky=W)
-        ttk.Label(header, text=f"Autor: {APP_AUTHOR}", style="Muted.TLabel").grid(row=3, column=0, sticky=W)
-        ttk.Radiobutton(header, text="Jasny", variable=self.theme_var, value="jasny", command=self.apply_theme).grid(
+        ttk.Label(header, text=f"{t('Autor: ')}{APP_AUTHOR}", style="Muted.TLabel").grid(row=3, column=0, sticky=W)
+        ttk.Radiobutton(header, text=t('Jasny'), variable=self.theme_var, value="jasny", command=self.apply_theme).grid(
             row=0, column=1, rowspan=2, padx=(4, 0)
         )
-        ttk.Radiobutton(header, text="Ciemny", variable=self.theme_var, value="ciemny", command=self.apply_theme).grid(
+        ttk.Radiobutton(header, text=t('Ciemny'), variable=self.theme_var, value="ciemny", command=self.apply_theme).grid(
             row=0, column=2, rowspan=2, padx=(4, 0)
         )
-        ttk.Radiobutton(header, text="Grafit", variable=self.theme_var, value="grafit", command=self.apply_theme).grid(
+        ttk.Radiobutton(header, text=t('Grafit'), variable=self.theme_var, value="grafit", command=self.apply_theme).grid(
             row=2, column=1, columnspan=2, sticky=W, padx=(4, 8)
         )
-        ttk.Button(header, text="+ Nowy Prompt", style="Accent.TButton", command=self.new_prompt).grid(
+        ttk.Button(header, text=t('+ Nowy Prompt'), style="Accent.TButton", command=self.new_prompt).grid(
             row=0, column=3, rowspan=4, padx=4
         )
 
-        sidebar = ttk.LabelFrame(main, text="Filtry", padding=10)
+        sidebar = ttk.LabelFrame(main, text=t('Filtry'), padding=10)
         sidebar.grid(row=1, column=0, sticky="nsw", padx=(0, 12))
         sidebar.columnconfigure(0, weight=1)
 
-        ttk.Label(sidebar, text="Status").grid(row=0, column=0, sticky=W)
+        ttk.Label(sidebar, text=t('Status')).grid(row=0, column=0, sticky=W)
         self.status_combo = ttk.Combobox(sidebar, textvariable=self.status_filter, state="readonly", width=24)
         self.status_combo.grid(row=1, column=0, sticky="ew", pady=(2, 10))
 
-        ttk.Label(sidebar, text="Model AI").grid(row=2, column=0, sticky=W)
+        ttk.Label(sidebar, text=t('Model AI')).grid(row=2, column=0, sticky=W)
         self.model_combo = ttk.Combobox(sidebar, textvariable=self.model_filter, state="readonly", width=24)
         self.model_combo.grid(row=3, column=0, sticky="ew", pady=(2, 10))
 
-        ttk.Label(sidebar, text="Zastosowanie").grid(row=4, column=0, sticky=W)
+        ttk.Label(sidebar, text=t('Zastosowanie')).grid(row=4, column=0, sticky=W)
         self.zastosowanie_combo = ttk.Combobox(
             sidebar, textvariable=self.zastosowanie_filter, state="readonly", width=24
         )
         self.zastosowanie_combo.grid(row=5, column=0, sticky="ew", pady=(2, 10))
 
-        ttk.Label(sidebar, text="Tag").grid(row=6, column=0, sticky=W)
+        ttk.Label(sidebar, text=t('Tag')).grid(row=6, column=0, sticky=W)
         self.tag_combo = ttk.Combobox(sidebar, textvariable=self.tag_filter, state="readonly", width=24)
         self.tag_combo.grid(row=7, column=0, sticky="ew", pady=(2, 10))
 
-        ttk.Button(sidebar, text="Wyczyść filtry", command=self.clear_filters).grid(row=8, column=0, sticky="ew")
+        ttk.Button(sidebar, text=t('Wyczyść filtry'), command=self.clear_filters).grid(row=8, column=0, sticky="ew")
 
-        self.checklist_frame = ttk.LabelFrame(sidebar, text="Pierwsze kroki", padding=8)
+        self.checklist_frame = ttk.LabelFrame(sidebar, text=t('Pierwsze kroki'), padding=8)
         self.checklist_frame.grid(row=9, column=0, sticky="ew", pady=(10, 0))
         self.checklist_labels: dict[str, ttk.Label] = {}
         checklist_steps = (
@@ -301,15 +336,15 @@ class PrompBaseApp:
             ("added_prompt", "4. Dodaj własny prompt"),
         )
         for idx, (key, label) in enumerate(checklist_steps):
-            row_label = ttk.Label(self.checklist_frame, text=f"○ {label}", style="Muted.TLabel", wraplength=200)
+            row_label = ttk.Label(self.checklist_frame, text=f"{t('○ ')}{label}", style="Muted.TLabel", wraplength=200)
             row_label.grid(row=idx, column=0, sticky=W, pady=1)
             self.checklist_labels[key] = row_label
 
-        import_frame = ttk.LabelFrame(sidebar, text="Import pliku", padding=8)
+        import_frame = ttk.LabelFrame(sidebar, text=t('Import pliku'), padding=8)
         import_frame.grid(row=10, column=0, sticky="ew", pady=(10, 0))
         ttk.Label(
             import_frame,
-            text="Kliknij, aby wczytać\nCSV lub JSON",
+            text=t('Kliknij, aby wczytać\nCSV lub JSON'),
             style="Muted.TLabel",
             justify=CENTER,
             cursor="hand2",
@@ -319,11 +354,11 @@ class PrompBaseApp:
             child.bind("<Button-1>", lambda _e: self.quick_import_file())
 
         ttk.Separator(sidebar).grid(row=11, column=0, sticky="ew", pady=12)
-        ttk.Label(sidebar, text="Przypięte", style="Stat.TLabel").grid(row=12, column=0, sticky=W)
+        ttk.Label(sidebar, text=t('Przypięte'), style="Stat.TLabel").grid(row=12, column=0, sticky=W)
         self.pinned_list = Listbox(sidebar, height=8, activestyle="dotbox")
         self.pinned_list.grid(row=13, column=0, sticky="nsew", pady=(4, 8))
         self.pinned_list.bind("<Double-Button-1>", self.open_pinned)
-        ttk.Button(sidebar, text="Otwórz przypięty", command=self.open_pinned).grid(row=14, column=0, sticky="ew")
+        ttk.Button(sidebar, text=t('Otwórz przypięty'), command=self.open_pinned).grid(row=14, column=0, sticky="ew")
         sidebar.rowconfigure(13, weight=1)
 
         content = ttk.Frame(main)
@@ -334,16 +369,16 @@ class PrompBaseApp:
         toolbar = ttk.Frame(content)
         toolbar.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         toolbar.columnconfigure(1, weight=1)
-        ttk.Label(toolbar, text="Szukaj").grid(row=0, column=0, padx=(0, 6))
+        ttk.Label(toolbar, text=t('Szukaj')).grid(row=0, column=0, padx=(0, 6))
         self.search_entry = ttk.Entry(toolbar, textvariable=self.search_var)
         self.search_entry.grid(row=0, column=1, sticky="ew", padx=(0, 8))
         ttk.Checkbutton(
             toolbar,
-            text="★ Tylko ulubione",
+            text=t('★ Tylko ulubione'),
             variable=self.favorites_only,
             command=self.refresh_list,
         ).grid(row=0, column=2, padx=(0, 10))
-        ttk.Label(toolbar, text="Sortuj").grid(row=0, column=3, padx=(0, 6))
+        ttk.Label(toolbar, text=t('Sortuj')).grid(row=0, column=3, padx=(0, 6))
         ttk.Combobox(toolbar, textvariable=self.sort_var, values=list(SORT_OPTIONS), state="readonly", width=14).grid(
             row=0, column=4
         )
@@ -359,12 +394,12 @@ class PrompBaseApp:
         headings = {
             "pinned": "Pin",
             "favorite": "★",
-            "name": "Nazwa",
-            "status": "Status",
+            "name": t("Nazwa"),
+            "status": t("Status"),
             "model": "Model",
-            "zastosowanie": "Zastosowanie",
+            "zastosowanie": t("Zastosowanie"),
             "format": "Format",
-            "created": "Data",
+            "created": t("Data"),
         }
         widths = {
             "pinned": 42,
@@ -385,10 +420,10 @@ class PrompBaseApp:
         self.tree.configure(yscrollcommand=tree_scroll.set)
         split.add(list_frame, weight=3)
 
-        detail = ttk.LabelFrame(split, text="Podgląd", padding=10)
+        detail = ttk.LabelFrame(split, text=t('Podgląd'), padding=10)
         detail.rowconfigure(5, weight=1)
         detail.columnconfigure(0, weight=1)
-        self.detail_title = ttk.Label(detail, text="Wybierz prompt", font=("Segoe UI", 14, "bold"))
+        self.detail_title = ttk.Label(detail, text=t('Wybierz prompt'), font=("Segoe UI", 14, "bold"))
         self.detail_title.grid(row=0, column=0, sticky=W, pady=(0, 6))
         self.detail_meta = ttk.Label(detail, text="", style="Muted.TLabel", wraplength=330)
         self.detail_meta.grid(row=1, column=0, sticky="ew", pady=(0, 8))
@@ -404,23 +439,23 @@ class PrompBaseApp:
         self.empty_state.grid_remove()
         ttk.Label(
             self.empty_state,
-            text="Biblioteka jest pusta.\nDodaj pierwszy prompt lub załaduj gotowe przykłady.",
+            text=t('Biblioteka jest pusta.\nDodaj pierwszy prompt lub załaduj gotowe przykłady.'),
             justify=CENTER,
             wraplength=320,
         ).pack(pady=(24, 12))
         empty_actions = ttk.Frame(self.empty_state)
         empty_actions.pack()
-        ttk.Button(empty_actions, text="+ Nowy Prompt", style="Accent.TButton", command=self.new_prompt).pack(
+        ttk.Button(empty_actions, text=t('+ Nowy Prompt'), style="Accent.TButton", command=self.new_prompt).pack(
             side=LEFT, padx=4
         )
-        ttk.Button(empty_actions, text="Załaduj przykłady", command=self.restore_sample_prompts).pack(side=LEFT, padx=4)
+        ttk.Button(empty_actions, text=t('Załaduj przykłady'), command=self.restore_sample_prompts).pack(side=LEFT, padx=4)
 
         self.primary_row = ttk.Frame(detail)
         self.primary_row.grid(row=6, column=0, sticky="ew", pady=(10, 0))
         self.primary_row.columnconfigure(0, weight=1)
         ttk.Button(
             self.primary_row,
-            text="Kopiuj i użyj w AI",
+            text=t('Kopiuj i użyj w AI'),
             style="Primary.TButton",
             command=self.copy_and_use_ai,
         ).grid(row=0, column=0, sticky="ew")
@@ -430,16 +465,16 @@ class PrompBaseApp:
         buttons = self.detail_actions
         for idx in range(8):
             buttons.columnconfigure(idx, weight=1)
-        ttk.Button(buttons, text="Kopiuj", command=self.copy_selected).grid(row=0, column=0, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Edytuj", command=self.edit_selected).grid(row=0, column=1, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Duplikuj", command=self.duplicate_selected).grid(row=0, column=2, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Historia", command=self.show_history).grid(row=0, column=3, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Przypnij", command=self.toggle_selected_pin).grid(row=0, column=4, sticky="ew", padx=2)
-        ttk.Button(buttons, text="★ Ulubiony", command=self.toggle_selected_favorite).grid(
+        ttk.Button(buttons, text=t('Kopiuj'), command=self.copy_selected).grid(row=0, column=0, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('Edytuj'), command=self.edit_selected).grid(row=0, column=1, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('Duplikuj'), command=self.duplicate_selected).grid(row=0, column=2, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('Historia'), command=self.show_history).grid(row=0, column=3, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('Przypnij'), command=self.toggle_selected_pin).grid(row=0, column=4, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('★ Ulubiony'), command=self.toggle_selected_favorite).grid(
             row=0, column=5, sticky="ew", padx=2
         )
-        ttk.Button(buttons, text="n8n", command=self.send_selected_to_n8n).grid(row=0, column=6, sticky="ew", padx=2)
-        ttk.Button(buttons, text="Usuń", command=self.delete_selected).grid(row=0, column=7, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('n8n'), command=self.send_selected_to_n8n).grid(row=0, column=6, sticky="ew", padx=2)
+        ttk.Button(buttons, text=t('Usuń'), command=self.delete_selected).grid(row=0, column=7, sticky="ew", padx=2)
 
         # Rząd akcji asystenta AI (przepisywanie promptu przez model).
         self.assistant_buttons = ttk.Frame(detail)
@@ -447,13 +482,13 @@ class PrompBaseApp:
         for idx in range(3):
             self.assistant_buttons.columnconfigure(idx, weight=1)
         ttk.Button(
-            self.assistant_buttons, text="✨ Ulepsz", command=self.ai_improve_selected
+            self.assistant_buttons, text=t('✨ Ulepsz'), command=self.ai_improve_selected
         ).grid(row=0, column=0, sticky="ew", padx=2)
         ttk.Button(
-            self.assistant_buttons, text="🌐 Przetłumacz", command=self.ai_translate_selected
+            self.assistant_buttons, text=t('🌐 Przetłumacz'), command=self.ai_translate_selected
         ).grid(row=0, column=1, sticky="ew", padx=2)
         ttk.Button(
-            self.assistant_buttons, text="🎯 Dostosuj…", command=self._ask_adapt_target
+            self.assistant_buttons, text=t('🎯 Dostosuj…'), command=self._ask_adapt_target
         ).grid(row=0, column=2, sticky="ew", padx=2)
 
         self.ai_buttons = ttk.Frame(detail)
@@ -463,13 +498,13 @@ class PrompBaseApp:
             ai_buttons.columnconfigure(idx, weight=1)
         ttk.Button(
             ai_buttons,
-            text="AI z modelu ↗",
+            text=t('AI z modelu ↗'),
             command=self.open_ai_for_model,
         ).grid(row=0, column=0, sticky="ew", padx=2)
         for idx, (platform_name, _url) in enumerate(AI_PLATFORMS, start=1):
             ttk.Button(
                 ai_buttons,
-                text=f"{platform_name} ↗",
+                text=f"{platform_name}{t(' ↗')}",
                 command=lambda name=platform_name: self.open_ai_platform(name, copy_prompt=True),
             ).grid(row=0, column=idx, sticky="ew", padx=2)
         split.add(detail, weight=2)
@@ -543,7 +578,7 @@ class PrompBaseApp:
     def copy_content_with_variables(self, content: str) -> bool:
         placeholders = extract_placeholders(content)
         if placeholders:
-            dialog = FillVariablesDialog(self.root, content, title="Uzupełnij zmienne przed kopiowaniem")
+            dialog = FillVariablesDialog(self.root, content, title=t('Uzupełnij zmienne przed kopiowaniem'))
             self.root.wait_window(dialog)
             if not dialog.filled_content:
                 return False
@@ -561,7 +596,7 @@ class PrompBaseApp:
         if not prompt:
             messagebox.showinfo(
                 APP_NAME,
-                "Wybierz prompt z listy po lewej, potem użyj „Kopiuj i użyj w AI”.",
+                t('Wybierz prompt z listy po lewej, potem użyj „Kopiuj i użyj w AI”.'),
                 parent=self.root,
             )
             return
@@ -573,7 +608,7 @@ class PrompBaseApp:
         self.open_ai_platform(platform, copy_prompt=False)
         self.store.mark_checklist("opened_ai")
         self._update_checklist_ui()
-        self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform}.")
+        self.set_status(f"{t('Skopiowano „')}{prompt.name}{t('” i otwarto ')}{platform}{t('.')}")
 
     def _update_checklist_ui(self) -> None:
         if not hasattr(self, "checklist_labels"):
@@ -605,14 +640,14 @@ class PrompBaseApp:
     def open_product_page(self) -> None:
         if LANDING_PAGE_PATH.is_file():
             webbrowser.open(LANDING_PAGE_PATH.resolve().as_uri())
-            self.set_status("Otwarto stronę produktu (landing).")
+            self.set_status(t('Otwarto stronę produktu (landing).'))
         else:
             webbrowser.open(APP_HELP_URL)
-            self.set_status("Otwarto dokumentację na GitHub.")
+            self.set_status(t('Otwarto dokumentację na GitHub.'))
 
     def open_download_page(self) -> None:
         webbrowser.open(APP_RELEASE_URL)
-        self.set_status("Otwarto stronę pobrań.")
+        self.set_status(t('Otwarto stronę pobrań.'))
 
     def _open_doc(self, path: Path, fallback_url: str, status: str) -> None:
         if path.is_file():
@@ -620,7 +655,7 @@ class PrompBaseApp:
             self.set_status(status)
         else:
             webbrowser.open(fallback_url)
-            self.set_status("Otwarto dokumentację online.")
+            self.set_status(t('Otwarto dokumentację online.'))
 
     def open_pwa_import_guide(self) -> None:
         self._open_doc(DOC_PWA_IMPORT, APP_HELP_URL, "Otwarto instrukcję importu PWA.")
@@ -635,11 +670,14 @@ class PrompBaseApp:
     def show_pro_coming_soon(self) -> None:
         messagebox.showinfo(
             APP_NAME,
-            "Paczki promptów Pro — w przygotowaniu\n\n"
-            "Plan obejmuje gotowe zestawy (marketing, kod, automatyzacja) "
-            "bez wymuszania konta w chmurze.\n\n"
-            "Wersja Free zawiera pełną bibliotekę i wszystkie funkcje aplikacji.\n"
-            f"Szczegóły: {APP_DIR / 'PRICING.md'}",
+            t(
+                "Paczki promptów Pro — w przygotowaniu\n\n"
+                "Plan obejmuje gotowe zestawy (marketing, kod, automatyzacja) "
+                "bez wymuszania konta w chmurze.\n\n"
+                "Wersja Free zawiera pełną bibliotekę i wszystkie funkcje aplikacji.\n"
+                "Szczegóły: "
+            )
+            + str(APP_DIR / "PRICING.md"),
             parent=self.root,
         )
 
@@ -647,8 +685,7 @@ class PrompBaseApp:
         if self.store.prompts:
             if not messagebox.askyesno(
                 APP_NAME,
-                "Zastąpić obecną bibliotekę przykładowymi promptami?\n"
-                "Obecne wpisy zostaną usunięte.",
+                t('Zastąpić obecną bibliotekę przykładowymi promptami?\nObecne wpisy zostaną usunięte.'),
                 parent=self.root,
             ):
                 return
@@ -658,7 +695,7 @@ class PrompBaseApp:
         if self.selected_id:
             self.tree.selection_set(self.selected_id)
             self.update_detail()
-        self.set_status("Załadowano przykładowe prompty.")
+        self.set_status(t('Załadowano przykładowe prompty.'))
 
     def _highlight_search_in_text(self, widget, query: str) -> None:
         widget.tag_delete("search_hit")
@@ -678,14 +715,14 @@ class PrompBaseApp:
     def open_ai_for_model(self) -> None:
         prompt = self.selected_prompt()
         if not prompt:
-            messagebox.showinfo(APP_NAME, "Zaznacz prompt, aby otworzyć sugerowaną platformę AI.", parent=self.root)
+            messagebox.showinfo(APP_NAME, t('Zaznacz prompt, aby otworzyć sugerowaną platformę AI.'), parent=self.root)
             return
         platform = suggest_ai_platform(prompt.model)
         if not platform:
             messagebox.showinfo(
                 APP_NAME,
-                f"Nie rozpoznano platformy dla modelu „{prompt.model or 'brak'}”.\n"
-                "Użyj przycisków ChatGPT, Claude lub Gemini.",
+                f"{t('Nie rozpoznano platformy dla modelu „')}{prompt.model or 'brak'}"
+                + t("”.\nUżyj przycisków ChatGPT, Claude lub Gemini."),
                 parent=self.root,
             )
             return
@@ -696,7 +733,7 @@ class PrompBaseApp:
         self.open_ai_platform(platform, copy_prompt=False)
         self.store.mark_checklist("opened_ai")
         self._update_checklist_ui()
-        self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform}.")
+        self.set_status(f"{t('Skopiowano „')}{prompt.name}{t('” i otwarto ')}{platform}{t('.')}")
 
     def open_ai_platform(self, platform_name: str, *, copy_prompt: bool) -> None:
         url = next((item_url for name, item_url in AI_PLATFORMS if name == platform_name), "")
@@ -707,7 +744,7 @@ class PrompBaseApp:
             if not prompt:
                 messagebox.showinfo(
                     APP_NAME,
-                    f"Brak zaznaczonego promptu. Otwieram {platform_name} bez kopiowania treści.",
+                    f"{t('Brak zaznaczonego promptu. Otwieram ')}{platform_name}{t(' bez kopiowania treści.')}",
                     parent=self.root,
                 )
             elif not self._clipboard_from_prompt(prompt):
@@ -719,9 +756,9 @@ class PrompBaseApp:
         if copy_prompt and prompt:
             self.store.mark_checklist("opened_ai")
             self._update_checklist_ui()
-            self.set_status(f"Skopiowano „{prompt.name}” i otwarto {platform_name}.")
+            self.set_status(f"{t('Skopiowano „')}{prompt.name}{t('” i otwarto ')}{platform_name}{t('.')}")
         else:
-            self.set_status(f"Otwarto {platform_name} w przeglądarce.")
+            self.set_status(f"{t('Otwarto ')}{platform_name}{t(' w przeglądarce.')}")
 
     def focus_search(self) -> str:
         self.search_entry.focus_set()
@@ -832,7 +869,7 @@ class PrompBaseApp:
             self.selected_id = None
             self.update_detail()
 
-        self.status_bar.configure(text=f"Wyświetlono {len(result)} z {len(self.store.prompts)} promptów")
+        self.status_bar.configure(text=f"{t('Wyświetlono ')}{len(result)}{t(' z ')}{len(self.store.prompts)}{t(' promptów')}")
 
     def refresh_pinned(self) -> None:
         self.pinned_list.delete(0, END)
@@ -850,7 +887,7 @@ class PrompBaseApp:
             [p for p in self.store.prompts if datetime.fromtimestamp(p.created / 1000).date() == today]
         )
         self.stats_label.configure(
-            text=f"{total} promptów | {models} modeli | {pinned} przypiętych | dziś dodano: {added_today}"
+            text=f"{total}{t(' promptów | ')}{models}{t(' modeli | ')}{pinned}{t(' przypiętych | dziś dodano: ')}{added_today}"
         )
 
     def update_detail(self) -> None:
@@ -864,7 +901,7 @@ class PrompBaseApp:
             self.primary_row.grid_remove()
             self.detail_actions.grid_remove()
             self.ai_buttons.grid_remove()
-            self.detail_title.configure(text="Brak promptów")
+            self.detail_title.configure(text=t('Brak promptów'))
             self.detail_meta.configure(text="")
             self.detail_comment.configure(text="")
             return
@@ -877,17 +914,16 @@ class PrompBaseApp:
         self.detail_text.configure(state="normal")
         self.detail_text.delete("1.0", END)
         if not prompt:
-            self.detail_title.configure(text="Wybierz prompt z listy")
-            self.detail_meta.configure(text="Kliknij wiersz po lewej lub użyj „Kopiuj i użyj w AI”.")
+            self.detail_title.configure(text=t('Wybierz prompt z listy'))
+            self.detail_meta.configure(text=t('Kliknij wiersz po lewej lub użyj „Kopiuj i użyj w AI”.'))
             self.detail_comment.configure(text="")
         else:
             self.detail_title.configure(text=prompt.name)
             tags_text = prompt.tags or "bez tagów"
             self.detail_meta.configure(
                 text=(
-                    f"{status_label(prompt.status)} | {prompt.format} | "
-                    f"{prompt.model or 'bez modelu'} | {prompt.zastosowanie or 'bez kategorii'} | "
-                    f"tagi: {tags_text} | {format_date(prompt.created)}"
+                    f"{status_label(prompt.status)}{t(' | ')}{prompt.format}{t(' | ')}"
+                    f"{prompt.model or 'bez modelu'}{t(' | ')}{prompt.zastosowanie or 'bez kategorii'}{t(' | tagi: ')}{tags_text}{t(' | ')}{format_date(prompt.created)}"
                 )
             )
             self.detail_comment.configure(text=f"Wskazówka: {prompt.comment}" if prompt.comment else "")
@@ -916,7 +952,7 @@ class PrompBaseApp:
             self._update_checklist_ui()
             self.selected_id = dialog.result.id
             self.refresh_all()
-            self.set_status("Prompt zapisany.")
+            self.set_status(t('Prompt zapisany.'))
 
     def edit_selected(self) -> None:
         prompt = self.selected_prompt()
@@ -934,13 +970,13 @@ class PrompBaseApp:
         if dialog.result:
             self.store.save()
             self.refresh_all()
-            self.set_status("Prompt zaktualizowany.")
+            self.set_status(t('Prompt zaktualizowany.'))
 
     def export_for_pwa(self) -> None:
         data = self.store.to_pwa_library_json()
         path = filedialog.asksaveasfilename(
             parent=self.root,
-            title="Eksport dla PWA",
+            title=t('Eksport dla PWA'),
             defaultextension=".json",
             initialfile="promptLibrary-pwa.json",
             filetypes=[("JSON", "*.json")],
@@ -958,18 +994,18 @@ class PrompBaseApp:
             + (f"Zapisano też plik:\n{path}" if path else ""),
             parent=self.root,
         )
-        self.set_status("Eksport dla PWA — skopiowano do schowka.")
+        self.set_status(t('Eksport dla PWA — skopiowano do schowka.'))
 
     def export_to_cloud(self) -> None:
         dialog = CloudExportDialog(self.root, self.store)
         self.root.wait_window(dialog)
         if dialog.exported_path:
-            self.set_status(f"Eksport chmury: {dialog.exported_path}")
+            self.set_status(f"{t('Eksport chmury: ')}{dialog.exported_path}")
 
     def quick_import_file(self) -> None:
         path = filedialog.askopenfilename(
             parent=self.root,
-            title="Import CSV lub JSON",
+            title=t('Import CSV lub JSON'),
             filetypes=[
                 ("CSV i JSON", "*.csv;*.json"),
                 ("CSV", "*.csv"),
@@ -986,7 +1022,7 @@ class PrompBaseApp:
         elif suffix == ".json":
             self._import_json_path(file_path)
         else:
-            messagebox.showwarning(APP_NAME, "Obsługiwane rozszerzenia: .csv, .json", parent=self.root)
+            messagebox.showwarning(APP_NAME, t('Obsługiwane rozszerzenia: .csv, .json'), parent=self.root)
 
     def _import_csv_path(self, path: Path) -> None:
         imported = self._read_csv(path)
@@ -996,7 +1032,7 @@ class PrompBaseApp:
         try:
             data = json.loads(path.read_text(encoding="utf-8-sig"))
         except (OSError, json.JSONDecodeError) as exc:
-            messagebox.showerror(APP_NAME, f"Błąd JSON:\n{exc}", parent=self.root)
+            messagebox.showerror(APP_NAME, (str(t('Błąd JSON:\n')) + str(exc)), parent=self.root)
             return
         if isinstance(data, dict) and "prompts" in data:
             raw = data["prompts"]
@@ -1008,12 +1044,12 @@ class PrompBaseApp:
     def _finish_file_import(self, imported: list[Prompt], *, source_label: str) -> None:
         valid = [p for p in imported if p.name and p.content]
         if not valid:
-            messagebox.showwarning(APP_NAME, "Brak poprawnych promptów w pliku.", parent=self.root)
+            messagebox.showwarning(APP_NAME, t('Brak poprawnych promptów w pliku.'), parent=self.root)
             return
         mode = messagebox.askyesnocancel(
             APP_NAME,
-            f"Plik: {source_label}\nZnaleziono {len(valid)} promptów.\n\n"
-            "Tak = dopisz\nNie = zastąp bibliotekę\nAnuluj",
+            (str(t('Plik: ')) + str(source_label) + str(t('\nZnaleziono ')) + str(len(valid)))
+            + t(" promptów.\n\nTak = dopisz\nNie = zastąp bibliotekę\nAnuluj"),
             parent=self.root,
         )
         if mode is None:
@@ -1026,17 +1062,17 @@ class PrompBaseApp:
             self.store.prompts = fresh + self.store.prompts
         self.store.save()
         self.refresh_all()
-        self.set_status(f"Zaimportowano z pliku: {source_label}")
+        self.set_status(f"{t('Zaimportowano z pliku: ')}{source_label}")
 
     def show_history(self) -> None:
         prompt = self.selected_prompt()
         if not prompt:
-            messagebox.showinfo(APP_NAME, "Zaznacz prompt, aby zobaczyć historię wersji.", parent=self.root)
+            messagebox.showinfo(APP_NAME, t('Zaznacz prompt, aby zobaczyć historię wersji.'), parent=self.root)
             return
         if not prompt.history:
             messagebox.showinfo(
                 APP_NAME,
-                "Brak zapisanych wersji.\nHistoria powstaje przy każdej edycji promptu (do 5 wersji).",
+                t('Brak zapisanych wersji.\nHistoria powstaje przy każdej edycji promptu (do 5 wersji).'),
                 parent=self.root,
             )
             return
@@ -1045,7 +1081,7 @@ class PrompBaseApp:
         if dialog.restored:
             self.store.save()
             self.refresh_all()
-            self.set_status(f"Przywrócono wersję promptu „{prompt.name}”.")
+            self.set_status(f"{t('Przywrócono wersję promptu „')}{prompt.name}{t('”.')}")
 
     def import_from_pwa(self) -> None:
         dialog = PwaImportDialog(self.root, theme_getter=self.get_theme_colors)
@@ -1055,10 +1091,10 @@ class PrompBaseApp:
         valid = dialog.imported
         mode = messagebox.askyesnocancel(
             APP_NAME,
-            f"Znaleziono {len(valid)} promptów z PWA.\n\n"
-            "Tak = dopisz do biblioteki\n"
-            "Nie = zastąp całą bibliotekę\n"
-            "Anuluj",
+            f"{t('Znaleziono ')}{len(valid)}"
+            + t(
+                " promptów z PWA.\n\nTak = dopisz do biblioteki\nNie = zastąp całą bibliotekę\nAnuluj"
+            ),
             parent=self.root,
         )
         if mode is None:
@@ -1090,19 +1126,19 @@ class PrompBaseApp:
                 self.store.n8n_url = dialog.n8n_url
         self.store.save()
         self.refresh_all()
-        self.set_status(f"Zaimportowano {len(valid)} promptów z PWA.")
+        self.set_status(f"{t('Zaimportowano ')}{len(valid)}{t(' promptów z PWA.')}")
 
     def delete_selected(self) -> None:
         prompt = self.selected_prompt()
         if not prompt:
             return
-        if not messagebox.askyesno(APP_NAME, f"Usunąć prompt „{prompt.name}”?", parent=self.root):
+        if not messagebox.askyesno(APP_NAME, f"{t('Usunąć prompt „')}{prompt.name}{t('”?')}", parent=self.root):
             return
         self.store.prompts = [item for item in self.store.prompts if item.id != prompt.id]
         self.store.save()
         self.selected_id = None
         self.refresh_all()
-        self.set_status("Prompt usunięty.")
+        self.set_status(t('Prompt usunięty.'))
 
     def toggle_selected_pin(self) -> None:
         prompt = self.selected_prompt()
@@ -1122,7 +1158,7 @@ class PrompBaseApp:
             self.store.ai_settings.update(dialog.result)
             self.store.save()
             engine_label = ai.ENGINES.get(self.store.ai_settings["engine"], "")
-            self.set_status(f"Zapisano konfigurację AI ({engine_label}).")
+            self.set_status(f"{t('Zapisano konfigurację AI (')}{engine_label}{t(').')}")
 
     def show_ai_status(self) -> None:
         settings = self.store.ai_settings
@@ -1152,10 +1188,10 @@ class PrompBaseApp:
     def _run_ai_action(self, action: str, *, title: str, target: str = "") -> None:
         prompt = self.selected_prompt()
         if not prompt:
-            messagebox.showinfo(APP_NAME, "Najpierw wybierz prompt z listy.", parent=self.root)
+            messagebox.showinfo(APP_NAME, t('Najpierw wybierz prompt z listy.'), parent=self.root)
             return
         if not prompt.content.strip():
-            messagebox.showinfo(APP_NAME, "Ten prompt nie ma treści.", parent=self.root)
+            messagebox.showinfo(APP_NAME, t('Ten prompt nie ma treści.'), parent=self.root)
             return
 
         settings = self.store.ai_settings
@@ -1179,7 +1215,7 @@ class PrompBaseApp:
 
         dialog = AiResultDialog(
             self.root,
-            title=f"{title} — {ai.ENGINES.get(engine, engine)}",
+            title=f"{title}{t(' — ')}{ai.ENGINES.get(engine, engine)}",
             original=prompt.content,
             runner=runner,
             theme_getter=self.get_theme_colors,
@@ -1195,7 +1231,7 @@ class PrompBaseApp:
             prompt.content = dialog.result_text
             self.store.save()
             self.refresh_all()
-            self.set_status(f"{title}: treść zaktualizowana (poprzednia wersja w historii).")
+            self.set_status(f"{title}{t(': treść zaktualizowana (poprzednia wersja w historii).')}")
         else:
             clone = Prompt(
                 name=f"{prompt.name} ({title})",
@@ -1211,17 +1247,17 @@ class PrompBaseApp:
             self.store.save()
             self.selected_id = clone.id
             self.refresh_all()
-            self.set_status(f"{title}: zapisano jako nowy prompt.")
+            self.set_status(f"{title}{t(': zapisano jako nowy prompt.')}")
 
     def ai_improve_selected(self) -> None:
-        self._run_ai_action(ai.ACTION_IMPROVE, title="Ulepszony")
+        self._run_ai_action(ai.ACTION_IMPROVE, title=t('Ulepszony'))
 
     def ai_translate_selected(self) -> None:
         language = self.store.ai_settings.get("translate_language", "angielski")
-        self._run_ai_action(ai.ACTION_TRANSLATE, title=f"Tłumaczenie {language}")
+        self._run_ai_action(ai.ACTION_TRANSLATE, title=f"{t('Tłumaczenie ')}{language}")
 
     def ai_adapt_selected(self, target: str) -> None:
-        self._run_ai_action(ai.ACTION_ADAPT, title=f"Wersja {target}", target=target)
+        self._run_ai_action(ai.ACTION_ADAPT, title=f"{t('Wersja ')}{target}", target=target)
 
     def _ask_adapt_target(self) -> None:
         """Menu podręczne z listą platform — wywoływane przyciskiem „Dostosuj…”."""
@@ -1250,7 +1286,7 @@ class PrompBaseApp:
         if self.copy_content_with_variables(prompt.content):
             self.store.mark_checklist("copied")
             self._update_checklist_ui()
-            self.set_status("Prompt skopiowany do schowka.")
+            self.set_status(t('Prompt skopiowany do schowka.'))
 
     def copy_selected_with_meta(self) -> None:
         prompt = self.selected_prompt()
@@ -1267,7 +1303,7 @@ class PrompBaseApp:
         body = "\n".join(lines)
         placeholders = extract_placeholders(prompt.content)
         if placeholders:
-            dialog = FillVariablesDialog(self.root, prompt.content, title="Uzupełnij zmienne w treści")
+            dialog = FillVariablesDialog(self.root, prompt.content, title=t('Uzupełnij zmienne w treści'))
             self.root.wait_window(dialog)
             if dialog.filled_content:
                 lines[-1] = dialog.filled_content
@@ -1275,7 +1311,7 @@ class PrompBaseApp:
         self.root.clipboard_clear()
         self.root.clipboard_append(body)
         self.root.update()
-        self.set_status("Skopiowano prompt z metadanymi.")
+        self.set_status(t('Skopiowano prompt z metadanymi.'))
 
     def duplicate_selected(self) -> None:
         prompt = self.selected_prompt()
@@ -1296,7 +1332,7 @@ class PrompBaseApp:
         self.store.save()
         self.selected_id = clone.id
         self.refresh_all()
-        self.set_status(f"Utworzono kopię: „{clone.name}”.")
+        self.set_status(f"{t('Utworzono kopię: „')}{clone.name}{t('”.')}")
 
     def open_pinned(self, _event=None) -> None:
         index = self.pinned_list.curselection()
@@ -1324,7 +1360,7 @@ class PrompBaseApp:
     def export_csv(self) -> None:
         path = filedialog.asksaveasfilename(
             parent=self.root,
-            title="Eksport CSV",
+            title=t('Eksport CSV'),
             defaultextension=".csv",
             initialfile="biblioteka-promptow.csv",
             filetypes=[("CSV", "*.csv")],
@@ -1350,12 +1386,12 @@ class PrompBaseApp:
                         prompt.content.replace("\n", " ↵ "),
                     ]
                 )
-        self.set_status(f"Eksport gotowy: {path}")
+        self.set_status(f"{t('Eksport gotowy: ')}{path}")
 
     def export_backup_json(self) -> None:
         path = filedialog.asksaveasfilename(
             parent=self.root,
-            title="Kopia zapasowa JSON",
+            title=t('Kopia zapasowa JSON'),
             defaultextension=".json",
             initialfile=f"prompbase-backup-{datetime.now().strftime('%Y%m%d')}.json",
             filetypes=[("JSON", "*.json")],
@@ -1366,12 +1402,12 @@ class PrompBaseApp:
             json.dumps(self.store.to_payload(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-        self.set_status(f"Kopia zapasowa zapisana: {path}")
+        self.set_status(f"{t('Kopia zapasowa zapisana: ')}{path}")
 
     def import_backup_json(self) -> None:
         path = filedialog.askopenfilename(
             parent=self.root,
-            title="Przywróć z JSON",
+            title=t('Przywróć z JSON'),
             filetypes=[("JSON", "*.json"), ("Wszystkie pliki", "*.*")],
         )
         if not path:
@@ -1379,7 +1415,7 @@ class PrompBaseApp:
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as exc:
-            messagebox.showerror(APP_NAME, f"Nie można wczytać pliku JSON:\n{exc}", parent=self.root)
+            messagebox.showerror(APP_NAME, (str(t('Nie można wczytać pliku JSON:\n')) + str(exc)), parent=self.root)
             return
 
         if isinstance(data, list):
@@ -1391,21 +1427,22 @@ class PrompBaseApp:
             n8n_url = data.get("n8n_url", self.store.n8n_url)
             theme = data.get("theme", self.store.theme)
         else:
-            messagebox.showerror(APP_NAME, "Nieprawidłowy format kopii zapasowej.", parent=self.root)
+            messagebox.showerror(APP_NAME, t('Nieprawidłowy format kopii zapasowej.'), parent=self.root)
             return
 
         imported = [Prompt.from_dict(item) for item in raw_prompts if isinstance(item, dict)]
         valid = [p for p in imported if p.name and p.content]
         if not valid:
-            messagebox.showwarning(APP_NAME, "W kopii nie ma poprawnych promptów.", parent=self.root)
+            messagebox.showwarning(APP_NAME, t('W kopii nie ma poprawnych promptów.'), parent=self.root)
             return
 
         mode = messagebox.askyesnocancel(
             APP_NAME,
-            f"Znaleziono {len(valid)} promptów.\n\n"
-            "Tak = dopisz do biblioteki\n"
-            "Nie = zastąp całą bibliotekę (i ustawienia z pliku)\n"
-            "Anuluj",
+            f"{t('Znaleziono ')}{len(valid)}"
+            + t(
+                " promptów.\n\nTak = dopisz do biblioteki\n"
+                "Nie = zastąp całą bibliotekę (i ustawienia z pliku)\nAnuluj"
+            ),
             parent=self.root,
         )
         if mode is None:
@@ -1425,19 +1462,19 @@ class PrompBaseApp:
 
         self.store.save()
         self.refresh_all()
-        self.set_status(f"Przywrócono {len(valid)} promptów z kopii zapasowej.")
+        self.set_status(f"{t('Przywrócono ')}{len(valid)}{t(' promptów z kopii zapasowej.')}")
 
     def import_csv(self) -> None:
         path = filedialog.askopenfilename(
             parent=self.root,
-            title="Import CSV",
+            title=t('Import CSV'),
             filetypes=[("CSV", "*.csv"), ("Wszystkie pliki", "*.*")],
         )
         if not path:
             return
         mode = messagebox.askyesnocancel(
             APP_NAME,
-            "Tak = dopisz nowe prompty\nNie = zastąp całą bibliotekę\nAnuluj = przerwij import",
+            t('Tak = dopisz nowe prompty\nNie = zastąp całą bibliotekę\nAnuluj = przerwij import'),
             parent=self.root,
         )
         if mode is None:
@@ -1447,7 +1484,7 @@ class PrompBaseApp:
         imported = self._read_csv(Path(path))
         valid = [prompt for prompt in imported if prompt.name and prompt.content]
         if not valid:
-            messagebox.showwarning(APP_NAME, "Nie znaleziono poprawnych promptów w CSV.", parent=self.root)
+            messagebox.showwarning(APP_NAME, t('Nie znaleziono poprawnych promptów w CSV.'), parent=self.root)
             return
 
         if replace:
@@ -1461,7 +1498,7 @@ class PrompBaseApp:
 
         self.store.save()
         self.refresh_all()
-        self.set_status(f"Zaimportowano {len(valid) - skipped} promptów. Pominięto duplikatów: {skipped}.")
+        self.set_status(f"{t('Zaimportowano ')}{len(valid) - skipped}{t(' promptów. Pominięto duplikatów: ')}{skipped}{t('.')}")
 
     def _read_csv(self, path: Path) -> list[Prompt]:
         text = path.read_text(encoding="utf-8-sig")
@@ -1535,7 +1572,7 @@ class PrompBaseApp:
             return
         self.store.n8n_url = dialog.saved_url
         self.store.save()
-        self.set_status("Konfiguracja n8n zapisana.")
+        self.set_status(t('Konfiguracja n8n zapisana.'))
 
     def test_n8n_webhook(self) -> None:
         url = self.ensure_n8n_url()
@@ -1543,14 +1580,14 @@ class PrompBaseApp:
             return
         payload = n8n_envelope(
             "test",
-            message="Test połączenia z Biblioteki Promptów AI (PrompBase Python)",
+            message=t('Test połączenia z Biblioteki Promptów AI (PrompBase Python)'),
         )
         self._post_json(url, payload, "Test webhooka n8n zakończony pomyślnie.")
 
     def send_selected_to_n8n(self) -> None:
         prompt = self.selected_prompt()
         if not prompt:
-            messagebox.showinfo(APP_NAME, "Zaznacz prompt na liście, który chcesz wysłać do n8n.", parent=self.root)
+            messagebox.showinfo(APP_NAME, t('Zaznacz prompt na liście, który chcesz wysłać do n8n.'), parent=self.root)
             return
         url = self.ensure_n8n_url()
         if not url:
@@ -1564,10 +1601,7 @@ class PrompBaseApp:
             return
         choice = messagebox.askyesnocancel(
             APP_NAME,
-            "Co wysłać do n8n?\n\n"
-            "Tak — cała biblioteka\n"
-            "Nie — tylko przypięte prompty\n"
-            "Anuluj — przerwij",
+            t('Co wysłać do n8n?\n\nTak — cała biblioteka\nNie — tylko przypięte prompty\nAnuluj — przerwij'),
             parent=self.root,
         )
         if choice is None:
@@ -1591,7 +1625,7 @@ class PrompBaseApp:
         if size_kb > 5120:
             if not messagebox.askyesno(
                 APP_NAME,
-                f"Payload ma ok. {size_kb} KB ({len(prompts)} promptów). Kontynuować wysyłkę?",
+                f"{t('Payload ma ok. ')}{size_kb}{t(' KB (')}{len(prompts)}{t(' promptów). Kontynuować wysyłkę?')}",
                 parent=self.root,
             ):
                 return
@@ -1601,10 +1635,7 @@ class PrompBaseApp:
         """Zapis lokalny tego samego JSON co webhook sync — do testów workflow n8n."""
         choice = messagebox.askyesnocancel(
             APP_NAME,
-            "Zapis JSON dla n8n:\n\n"
-            "Tak — cała biblioteka\n"
-            "Nie — tylko przypięte\n"
-            "Anuluj",
+            t('Zapis JSON dla n8n:\n\nTak — cała biblioteka\nNie — tylko przypięte\nAnuluj'),
             parent=self.root,
         )
         if choice is None:
@@ -1612,7 +1643,7 @@ class PrompBaseApp:
         pinned_only = choice is False
         prompts = [p for p in self.store.prompts if p.pinned] if pinned_only else list(self.store.prompts)
         if not prompts:
-            messagebox.showwarning(APP_NAME, "Brak promptów do eksportu.", parent=self.root)
+            messagebox.showwarning(APP_NAME, t('Brak promptów do eksportu.'), parent=self.root)
             return
         payload = n8n_envelope(
             "sync",
@@ -1622,7 +1653,7 @@ class PrompBaseApp:
         )
         path = filedialog.asksaveasfilename(
             parent=self.root,
-            title="Eksport JSON dla n8n",
+            title=t('Eksport JSON dla n8n'),
             defaultextension=".json",
             initialfile="prompbase-n8n-sync.json",
             filetypes=[("JSON", "*.json")],
@@ -1630,16 +1661,14 @@ class PrompBaseApp:
         if not path:
             return
         Path(path).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        self.set_status(f"Zapisano JSON dla n8n: {path}")
+        self.set_status(f"{t('Zapisano JSON dla n8n: ')}{path}")
 
     def _post_json(self, url: str, payload: dict, ok_message: str) -> bool:
         normalized_url = normalize_n8n_url(url)
         if not validate_n8n_url(normalized_url):
             messagebox.showerror(
                 APP_NAME,
-                "Nieprawidłowy URL webhooka.\n\n"
-                "Adres musi zaczynać się od http:// lub https:// i zawierać ścieżkę /webhook/ "
-                "(np. https://twoja-instancja.app.n8n.cloud/webhook/prompbase).",
+                t('Nieprawidłowy URL webhooka.\n\nAdres musi zaczynać się od http:// lub https:// i zawierać ścieżkę /webhook/ (np. https://twoja-instancja.app.n8n.cloud/webhook/prompbase).'),
                 parent=self.root,
             )
             return False
@@ -1663,39 +1692,39 @@ class PrompBaseApp:
             detail = exc.read().decode("utf-8", errors="replace").strip() if exc.fp else ""
             messagebox.showwarning(
                 APP_NAME,
-                f"n8n zwrócił błąd HTTP {exc.code}.\n\n{detail or exc.reason}",
+                (str(t('n8n zwrócił błąd HTTP ')) + str(exc.code) + str(t('.\n\n')) + str(detail or exc.reason)),
                 parent=self.root,
             )
-            self.set_status(f"Błąd n8n: HTTP {exc.code}")
+            self.set_status(f"{t('Błąd n8n: HTTP ')}{exc.code}")
             return False
         except URLError as exc:
             messagebox.showwarning(
                 APP_NAME,
-                f"Nie udało się połączyć z n8n:\n{exc.reason or exc}",
+                (str(t('Nie udało się połączyć z n8n:\n')) + str(exc.reason or exc)),
                 parent=self.root,
             )
-            self.set_status("Błąd połączenia z n8n.")
+            self.set_status(t('Błąd połączenia z n8n.'))
             return False
         except TimeoutError:
             messagebox.showwarning(
                 APP_NAME,
-                f"Przekroczono limit czasu ({N8N_HTTP_TIMEOUT}s). Sprawdź URL i czy workflow n8n jest aktywny.",
+                f"{t('Przekroczono limit czasu (')}{N8N_HTTP_TIMEOUT}{t('s). Sprawdź URL i czy workflow n8n jest aktywny.')}",
                 parent=self.root,
             )
-            self.set_status("Timeout połączenia z n8n.")
+            self.set_status(t('Timeout połączenia z n8n.'))
             return False
 
         if status < 200 or status >= 300:
             messagebox.showwarning(
                 APP_NAME,
-                f"n8n zwrócił nieoczekiwany status HTTP {status}.\n\n{body[:500]}",
+                (str(t('n8n zwrócił nieoczekiwany status HTTP ')) + str(status) + str(t('.\n\n')) + str(body[:500])),
                 parent=self.root,
             )
-            self.set_status(f"Błąd n8n: HTTP {status}")
+            self.set_status(f"{t('Błąd n8n: HTTP ')}{status}")
             return False
 
         suffix = f" — odpowiedź: {body[:120]}" if body else ""
-        self.set_status(f"{ok_message} (HTTP {status}){suffix}")
+        self.set_status(f"{ok_message}{t(' (HTTP ')}{status}{t(')')}{suffix}")
         return True
 
     def show_help(self) -> None:
@@ -1703,50 +1732,48 @@ class PrompBaseApp:
             f"\nStrona produktu: {LANDING_PAGE_PATH}\n" if LANDING_PAGE_PATH.is_file() else ""
         )
         messagebox.showinfo(
-            "PrompBase - pomoc",
-            f"PrompBase v{APP_VERSION}\n"
-            f"Autor: {APP_AUTHOR}\n"
-            f"Dokumentacja: {APP_HELP_URL}\n"
-            f"Pobierz: {APP_RELEASE_URL}"
-            f"{landing_hint}\n\n"
-            "Główna akcja: „Kopiuj i użyj w AI” — kopiuje prompt i otwiera platformę.\n"
-            "Przewodnik startowy: menu Pomoc.\n\n"
-            "Skróty:\n"
-            "Ctrl+N - nowy prompt\n"
-            "Ctrl+D - duplikuj prompt\n"
-            "Ctrl+Enter - edytuj zaznaczony\n"
-            "Ctrl+Shift+A - kopiuj i użyj w AI (główna akcja)\n"
-            "Ctrl+Shift+C - kopiuj z metadanymi\n"
-            "/ lub Ctrl+F - wyszukiwanie\n"
-            "Delete - usuń zaznaczony\n"
-            "Ctrl+I - import CSV\n"
-            "Ctrl+E - eksport CSV\n"
-            "Ctrl+Shift+N - konfiguracja n8n\n\n"
-            "Plik -> Kopia zapasowa JSON / Przywróć z JSON\n"
-            "Plik -> Import z PWA / Eksport dla PWA\n"
-            "Plik -> Eksport do chmury (folder Google Drive lub OneDrive)\n"
-            "Tagi — filtrowanie i pole w edycji (po przecinku)\n"
-            "Kopiowanie — uzupełnia [TEMAT], [TEKST] jeśli są w prompcie\n"
-            "Szukaj — podświetla frazę w podglądzie treści\n"
-            "Historia — do 5 wersji przy edycji\n"
-            "Przy zapisie tworzona jest kopia promptbase.json.bak\n\n"
-            "Menu AI oraz przyciski ChatGPT / Claude / Gemini:\n"
-            "kopiują zaznaczony prompt do schowka i otwierają stronę modelu.\n\n"
-            "n8n (Narzędzia):\n"
-            "- skonfiguruj URL webhooka (/webhook/ w adresie)\n"
-            "- Testuj webhook — wysyła type: test\n"
-            "- Wyślij zaznaczony — type: single_prompt\n"
-            "- Synchronizuj — type: sync (cała biblioteka lub przypięte)\n"
-            "- Eksportuj JSON — ten sam format bez wysyłki HTTP\n\n"
-            "Widok -> Tryb jasny/ciemny zmienia wygląd aplikacji.\n"
-            "Dane są zapisywane lokalnie w pliku JSON. Import/eksport CSV jest zgodny z wersją PWA.",
+            t("PrompBase - pomoc"),
+            (str(t('PrompBase v')) + str(APP_VERSION) + str(t('\nAutor: ')) + str(APP_AUTHOR) + str(t('\nDokumentacja: ')) + str(APP_HELP_URL) + str(t('\nPobierz: ')) + str(APP_RELEASE_URL) + str(landing_hint))
+            + t(
+                "\n\nGłówna akcja: „Kopiuj i użyj w AI” — kopiuje prompt i otwiera platformę.\n"
+                "Przewodnik startowy: menu Pomoc.\n\n"
+                "Skróty:\n"
+                "Ctrl+N - nowy prompt\n"
+                "Ctrl+D - duplikuj prompt\n"
+                "Ctrl+Enter - edytuj zaznaczony\n"
+                "Ctrl+Shift+A - kopiuj i użyj w AI (główna akcja)\n"
+                "Ctrl+Shift+C - kopiuj z metadanymi\n"
+                "/ lub Ctrl+F - wyszukiwanie\n"
+                "Delete - usuń zaznaczony\n"
+                "Ctrl+I - import CSV\n"
+                "Ctrl+E - eksport CSV\n"
+                "Ctrl+Shift+N - konfiguracja n8n\n\n"
+                "Plik -> Kopia zapasowa JSON / Przywróć z JSON\n"
+                "Plik -> Import z PWA / Eksport dla PWA\n"
+                "Plik -> Eksport do chmury (folder Google Drive lub OneDrive)\n"
+                "Tagi — filtrowanie i pole w edycji (po przecinku)\n"
+                "Kopiowanie — uzupełnia [TEMAT], [TEKST] jeśli są w prompcie\n"
+                "Szukaj — podświetla frazę w podglądzie treści\n"
+                "Historia — do 5 wersji przy edycji\n"
+                "Przy zapisie tworzona jest kopia promptbase.json.bak\n\n"
+                "Menu AI oraz przyciski ChatGPT / Claude / Gemini:\n"
+                "kopiują zaznaczony prompt do schowka i otwierają stronę modelu.\n\n"
+                "n8n (Narzędzia):\n"
+                "- skonfiguruj URL webhooka (/webhook/ w adresie)\n"
+                "- Testuj webhook — wysyła type: test\n"
+                "- Wyślij zaznaczony — type: single_prompt\n"
+                "- Synchronizuj — type: sync (cała biblioteka lub przypięte)\n"
+                "- Eksportuj JSON — ten sam format bez wysyłki HTTP\n\n"
+                "Widok -> Tryb jasny/ciemny zmienia wygląd aplikacji.\n"
+                "Dane są zapisywane lokalnie w pliku JSON. Import/eksport CSV jest zgodny z wersją PWA."
+            ),
             parent=self.root,
         )
 
     def show_data_path(self) -> None:
         backup = self.store.path.with_suffix(".json.bak")
         extra = f"\n\nOstatnia kopia automatyczna:\n{backup}" if backup.exists() else ""
-        messagebox.showinfo(APP_NAME, f"Plik danych:\n{self.store.path}{extra}", parent=self.root)
+        messagebox.showinfo(APP_NAME, (str(t('Plik danych:\n')) + str(self.store.path) + str(extra)), parent=self.root)
 
     def open_data_folder(self) -> None:
         folder = self.store.path.parent
@@ -1757,9 +1784,9 @@ class PrompBaseApp:
                 subprocess.run(["open", str(folder)], check=False)
             else:
                 subprocess.run(["xdg-open", str(folder)], check=False)
-            self.set_status(f"Otwarto folder: {folder}")
+            self.set_status(f"{t('Otwarto folder: ')}{folder}")
         except OSError as exc:
-            messagebox.showwarning(APP_NAME, f"Nie udało się otworzyć folderu:\n{exc}", parent=self.root)
+            messagebox.showwarning(APP_NAME, (str(t('Nie udało się otworzyć folderu:\n')) + str(exc)), parent=self.root)
 
     def set_status(self, message: str) -> None:
         self.status_bar.configure(text=message)

@@ -19,6 +19,7 @@ from tkinter import (
 
 from pbcore import ai
 from pbcore.core import APP_NAME, apply_widget_theme, theme_colors
+from pbcore.i18n import t
 
 
 class AiConfigDialog(Toplevel):
@@ -27,7 +28,7 @@ class AiConfigDialog(Toplevel):
     def __init__(self, parent, settings: dict, *, theme_getter=None):
         super().__init__(parent)
         self.theme_getter = theme_getter
-        self.title("Konfiguracja AI")
+        self.title(t('Konfiguracja AI'))
         self.geometry("660x510")
         self.minsize(600, 470)
         self.result: dict | None = None
@@ -36,12 +37,12 @@ class AiConfigDialog(Toplevel):
         body.pack(fill="both", expand=True)
         body.columnconfigure(1, weight=1)
 
-        ttk.Label(body, text="Silnik AI", font=("Segoe UI", 11, "bold")).grid(
+        ttk.Label(body, text=t('Silnik AI'), font=("Segoe UI", 11, "bold")).grid(
             row=0, column=0, columnspan=2, sticky=W, pady=(0, 8)
         )
 
         self.engine_var = StringVar(value=ai.ENGINES.get(settings.get("engine", ai.ENGINE_OLLAMA), ""))
-        ttk.Label(body, text="Silnik").grid(row=1, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Silnik')).grid(row=1, column=0, sticky=W, pady=4)
         engine_box = ttk.Combobox(
             body,
             textvariable=self.engine_var,
@@ -51,7 +52,7 @@ class AiConfigDialog(Toplevel):
         engine_box.grid(row=1, column=1, sticky="ew", pady=4)
         engine_box.bind("<<ComboboxSelected>>", lambda _e: self._update_hint())
 
-        ttk.Label(body, text="Model OpenRouter").grid(row=2, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Model OpenRouter')).grid(row=2, column=0, sticky=W, pady=4)
         self.or_model_var = StringVar(value=settings.get("openrouter_model", ai.OPENROUTER_DEFAULT_MODEL))
         ttk.Combobox(
             body,
@@ -67,7 +68,7 @@ class AiConfigDialog(Toplevel):
             ],
         ).grid(row=2, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Klucz OpenRouter").grid(row=3, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Klucz OpenRouter')).grid(row=3, column=0, sticky=W, pady=4)
         key_row = ttk.Frame(body)
         key_row.grid(row=3, column=1, sticky="ew", pady=4)
         key_row.columnconfigure(0, weight=1)
@@ -75,25 +76,25 @@ class AiConfigDialog(Toplevel):
         self.key_entry = ttk.Entry(key_row, textvariable=self.api_key_var, show="*")
         self.key_entry.grid(row=0, column=0, sticky="ew")
         self.show_key = BooleanVar(value=False)
-        ttk.Checkbutton(key_row, text="Pokaż", variable=self.show_key, command=self._toggle_key).grid(
+        ttk.Checkbutton(key_row, text=t('Pokaż'), variable=self.show_key, command=self._toggle_key).grid(
             row=0, column=1, padx=(6, 0)
         )
-        ttk.Button(key_row, text="Wyczyść", command=self._clear_key).grid(row=0, column=2, padx=(6, 0))
+        ttk.Button(key_row, text=t('Wyczyść'), command=self._clear_key).grid(row=0, column=2, padx=(6, 0))
 
-        ttk.Label(body, text="Host Ollama").grid(row=4, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Host Ollama')).grid(row=4, column=0, sticky=W, pady=4)
         self.host_var = StringVar(value=settings.get("ollama_host", ai.OLLAMA_DEFAULT_HOST))
         ttk.Entry(body, textvariable=self.host_var).grid(row=4, column=1, sticky="ew", pady=4)
 
-        ttk.Label(body, text="Model Ollama").grid(row=5, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Model Ollama')).grid(row=5, column=0, sticky=W, pady=4)
         self.ollama_model_var = StringVar(value=settings.get("ollama_model", ai.OLLAMA_DEFAULT_MODEL))
         self.ollama_box = ttk.Combobox(body, textvariable=self.ollama_model_var, values=[])
         self.ollama_box.grid(row=5, column=1, sticky="ew", pady=4)
 
-        ttk.Button(body, text="Wykryj modele Ollama", command=self.detect_models).grid(
+        ttk.Button(body, text=t('Wykryj modele Ollama'), command=self.detect_models).grid(
             row=6, column=1, sticky=W, pady=(0, 8)
         )
 
-        ttk.Label(body, text="Język tłumaczeń").grid(row=7, column=0, sticky=W, pady=4)
+        ttk.Label(body, text=t('Język tłumaczeń')).grid(row=7, column=0, sticky=W, pady=4)
         self.lang_var = StringVar(value=settings.get("translate_language", "angielski"))
         ttk.Combobox(
             body,
@@ -107,8 +108,8 @@ class AiConfigDialog(Toplevel):
 
         buttons = ttk.Frame(body)
         buttons.grid(row=9, column=0, columnspan=2, sticky="e", pady=(16, 0))
-        ttk.Button(buttons, text="Anuluj", command=self.destroy).pack(side="right", padx=(8, 0))
-        ttk.Button(buttons, text="Zapisz", command=self.save).pack(side="right")
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(buttons, text=t('Zapisz'), command=self.save).pack(side="right")
 
         self._update_hint()
         self.transient(parent)
@@ -131,27 +132,21 @@ class AiConfigDialog(Toplevel):
         if self._engine_key() == ai.ENGINE_OPENROUTER:
             source = ai.api_key_source()
             if source == "env":
-                state = f"wykryty ze zmiennej {ai.OPENROUTER_API_KEY_ENV} (ma pierwszeństwo)"
+                state = f"{t('wykryty ze zmiennej ')}{ai.OPENROUTER_API_KEY_ENV}{t(' (ma pierwszeństwo)')}"
             elif source == "plik":
-                state = "zapisany w ustawieniach"
+                state = t("zapisany w ustawieniach")
             else:
-                state = "BRAK"
+                state = t("BRAK")
             self.hint.configure(
                 text=(
-                    f"OpenRouter — klucz API: {state}.\n"
-                    "Klucz możesz wpisać powyżej (zapisujemy go w osobnym pliku "
-                    f"{ai.api_key_file().name} w folderze danych, poza promptbase.json — "
-                    "dzięki temu nie trafia do kopii zapasowych ani eksportu do chmury).\n"
-                    f"Alternatywnie ustaw zmienną środowiskową {ai.OPENROUTER_API_KEY_ENV}. "
-                    "Klucz zdobędziesz na https://openrouter.ai/keys"
+                    (str(t('OpenRouter — klucz API: ')) + str(state) + str(t('.\nKlucz możesz wpisać powyżej (zapisujemy go w osobnym pliku ')) + str(ai.api_key_file().name) + str(t(' w folderze danych, poza promptbase.json — dzięki temu nie trafia do kopii zapasowych ani eksportu do chmury).\nAlternatywnie ustaw zmienną środowiskową ')) + str(ai.OPENROUTER_API_KEY_ENV))
+                    + t(". Klucz zdobędziesz na https://openrouter.ai/keys")
                 )
             )
         else:
             self.hint.configure(
                 text=(
-                    "Ollama — działa lokalnie, bez klucza i bez wysyłania danych do sieci. "
-                    "Upewnij się, że aplikacja Ollama jest uruchomiona, i wybierz zainstalowany model "
-                    "(przycisk „Wykryj modele Ollama”)."
+                    t('Ollama — działa lokalnie, bez klucza i bez wysyłania danych do sieci. Upewnij się, że aplikacja Ollama jest uruchomiona, i wybierz zainstalowany model (przycisk „Wykryj modele Ollama”).')
                 )
             )
 
@@ -160,15 +155,14 @@ class AiConfigDialog(Toplevel):
         if not models:
             messagebox.showwarning(
                 APP_NAME,
-                "Nie znaleziono modeli. Sprawdź, czy Ollama jest uruchomiona, "
-                "a następnie pobierz model, np. w terminalu:\n\n    ollama pull llama3.1",
+                t('Nie znaleziono modeli. Sprawdź, czy Ollama jest uruchomiona, a następnie pobierz model, np. w terminalu:\n\n    ollama pull llama3.1'),
                 parent=self,
             )
             return
         self.ollama_box.configure(values=models)
         if self.ollama_model_var.get() not in models:
             self.ollama_model_var.set(models[0])
-        messagebox.showinfo(APP_NAME, f"Znaleziono modeli: {len(models)}", parent=self)
+        messagebox.showinfo(APP_NAME, f"{t('Znaleziono modeli: ')}{len(models)}", parent=self)
 
     def save(self) -> None:
         # Klucz zapisujemy osobno — nigdy w promptbase.json.
@@ -207,8 +201,8 @@ class AiResultDialog(Toplevel):
         body.columnconfigure(1, weight=1)
         body.rowconfigure(1, weight=1)
 
-        ttk.Label(body, text="Oryginał", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky=W)
-        ttk.Label(body, text="Wynik AI", font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky=W, padx=(10, 0))
+        ttk.Label(body, text=t('Oryginał'), font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky=W)
+        ttk.Label(body, text=t('Wynik AI'), font=("Segoe UI", 10, "bold")).grid(row=0, column=1, sticky=W, padx=(10, 0))
 
         self.left = self._text(body)
         self.left.grid(row=1, column=0, sticky="nsew", pady=(4, 0))
@@ -217,19 +211,19 @@ class AiResultDialog(Toplevel):
 
         self.right = self._text(body)
         self.right.grid(row=1, column=1, sticky="nsew", padx=(10, 0), pady=(4, 0))
-        self.right.insert("1.0", "Pracuję… to może potrwać kilkanaście sekund.")
+        self.right.insert("1.0", t('Pracuję… to może potrwać kilkanaście sekund.'))
         self.right.configure(state="disabled")
 
-        self.status = ttk.Label(body, text="Wysyłam zapytanie do modelu…")
+        self.status = ttk.Label(body, text=t('Wysyłam zapytanie do modelu…'))
         self.status.grid(row=2, column=0, columnspan=2, sticky=W, pady=(10, 0))
 
         self.buttons = ttk.Frame(body)
         self.buttons.grid(row=3, column=0, columnspan=2, sticky="e", pady=(12, 0))
-        self.cancel_btn = ttk.Button(self.buttons, text="Anuluj", command=self.destroy)
+        self.cancel_btn = ttk.Button(self.buttons, text=t('Anuluj'), command=self.destroy)
         self.cancel_btn.pack(side="right", padx=(8, 0))
-        self.new_btn = ttk.Button(self.buttons, text="Zapisz jako nowy", command=self._save_new, state="disabled")
+        self.new_btn = ttk.Button(self.buttons, text=t('Zapisz jako nowy'), command=self._save_new, state="disabled")
         self.new_btn.pack(side="right", padx=(8, 0))
-        self.replace_btn = ttk.Button(self.buttons, text="Zastąp treść", command=self._replace, state="disabled")
+        self.replace_btn = ttk.Button(self.buttons, text=t('Zastąp treść'), command=self._replace, state="disabled")
         self.replace_btn.pack(side="right")
 
         self.transient(parent)
@@ -267,13 +261,13 @@ class AiResultDialog(Toplevel):
         if self._closed or not self.winfo_exists():
             return
         if error:
-            self.status.configure(text="Nie udało się wykonać akcji.")
+            self.status.configure(text=t('Nie udało się wykonać akcji.'))
             self._set_right(error)
             messagebox.showerror(APP_NAME, error, parent=self)
             return
         self.result_text = text
         self._set_right(text)
-        self.status.configure(text="Gotowe. Wybierz, co zrobić z wynikiem.")
+        self.status.configure(text=t('Gotowe. Wybierz, co zrobić z wynikiem.'))
         self.replace_btn.configure(state="normal")
         self.new_btn.configure(state="normal")
 

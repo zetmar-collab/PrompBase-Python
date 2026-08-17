@@ -6,7 +6,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 # Wersja z promptbase.py (spójna z build_windows.ps1).
-$Version = "2.8.1"
+$Version = "2.9.0"
 $versionFile = Join-Path $Root "pbcore\core.py"
 if (Test-Path $versionFile) {
     $match = Select-String -Path $versionFile -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1

@@ -52,7 +52,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.8-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.9.0-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
@@ -64,8 +64,30 @@ Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
-Wynik: `dist\PrompBase-2.8-Setup.exe` — instalacja per-user (bez administratora),
+Wynik: `dist\PrompBase-2.9.0-Setup.exe` — instalacja per-user (bez administratora),
 skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
+
+### Pakiet MSIX (Microsoft Store)
+
+Po zbudowaniu EXE zbuduj paczkę `.msix` (wymaga Windows SDK — `makeappx.exe`,
+zwykle zainstalowany z Visual Studio lub [samodzielnie](https://aka.ms/windowssdk)):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_msix.ps1
+```
+
+Wynik: `dist\PrompBase-2.9.0.msix` — wyślij ten plik w
+[Partner Center](https://partner.microsoft.com/dashboard) (Microsoft Store
+podpisuje paczkę ponownie przy publikacji, więc lokalny podpis nie jest
+wymagany). Tożsamość pakietu: `MarekZettel-zetmar.PrompBase`
+(publisher: Marek Zettel - zetmar).
+
+Aby przetestować instalację lokalnie (sideload) przed wysyłką do Store, dodaj
+`-Sign` — skrypt utworzy certyfikat testowy i podpisze paczkę:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build_msix.ps1 -Sign
+```
 
 ## Testy i lint (dla programistów)
 
@@ -75,9 +97,21 @@ python -m pytest
 python -m ruff check
 ```
 
-## Funkcje (v2.8)
+## Funkcje (v2.9)
 
-### Asystent AI (nowość)
+### Język interfejsu (nowość)
+
+- **Widok → Język → Polski / English** — przełącza menu natychmiast; pełny efekt
+  (etykiety, przyciski, nagłówki listy) po ponownym uruchomieniu aplikacji
+- Wybór zapisywany w `promptbase.json`
+- **Prompty systemowe wysyłane do AI** (ulepszanie, tłumaczenie, dostosowanie do
+  platformy) są w tym samym języku co interfejs — po angielsku dla `English`
+- **Przykładowe prompty** przy pierwszym uruchomieniu też zależą od języka
+- Świadomie **nie** tłumaczone: etykiety statusu (Nowy/Praca/…) — bo zasilają
+  też payload wysyłany do n8n, i sentinel filtra „Wszystkie” — zmiana języka
+  nie może cicho zmienić kontraktu danych ani zepsuć filtrowania
+
+### Asystent AI
 
 Dwa silniki do wyboru — **OpenRouter** (chmura) i **Ollama** (lokalnie, bez wysyłania danych):
 

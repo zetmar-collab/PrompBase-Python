@@ -176,6 +176,10 @@ def test_run_ai_action_unknown_engine_raises():
 
 def test_openrouter_without_key_raises(monkeypatch):
     monkeypatch.delenv(ai.OPENROUTER_API_KEY_ENV, raising=False)
+    # Isolate from any real key stored on this machine (openrouter_api_key()
+    # falls back to a file in app_data_dir()) — otherwise this test would
+    # reach the real OpenRouter API using the user's own saved key.
+    monkeypatch.setattr(ai, "load_stored_api_key", lambda: "")
     with pytest.raises(ai.AiError, match=ai.OPENROUTER_API_KEY_ENV):
         ai.run_openrouter("m", "s", "u")
 

@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from pbcore import i18n
 from pbcore.core import *  # noqa: F401,F403
 
 
@@ -70,6 +71,122 @@ class Prompt:
         return payload
 
 
+def _sample_prompts_pl() -> list[Prompt]:
+    return [
+        Prompt(
+            name="Post LinkedIn — marketing",
+            status="praca",
+            format="tekst",
+            model="GPT-5.5",
+            zastosowanie="marketing",
+            tags="social, polski",
+            content=(
+                "Napisz post na LinkedIn po polsku. Ton: ekspercki, ale przystępny.\n\n"
+                "Temat: [TEMAT]\nGrupa docelowa: [ODBIORCA]\nCall to action: [CTA]"
+            ),
+            comment="Przykład dla marketerów — użyj „Kopiuj i użyj w AI”",
+            pinned=True,
+        ),
+        Prompt(
+            name="Analiza kodu Python",
+            status="praca",
+            format="kod",
+            model="Claude Opus 4.7",
+            zastosowanie="kodowanie",
+            tags="kod",
+            content=(
+                "Jesteś senior developerem Python. Przeanalizuj poniższy kod pod kątem "
+                "błędów, wydajności, refaktoryzacji, PEP8 i bezpieczeństwa.\n\n```python\n[KOD]\n```"
+            ),
+            comment="Dla programistów — otwórz Claude po skopiowaniu",
+        ),
+        Prompt(
+            name="n8n — opis zadania do workflow",
+            status="uniwersalne",
+            format="tekst",
+            model="GPT-5.5 Mini",
+            zastosowanie="automatyzacja",
+            tags="n8n, szablon",
+            content=(
+                "Przygotuj zwięzły opis kroku automatyzacji n8n.\n\n"
+                "Cel workflow: [CEL]\nWejście: [WEJSCIE]\nWyjście: [WYJSCIE]"
+            ),
+            comment="Wyślij do n8n z menu Narzędzia po skonfigurowaniu webhooka",
+        ),
+        Prompt(
+            name="Korektor ortografii PL",
+            status="uniwersalne",
+            format="tekst",
+            model="Claude Sonnet 4.6",
+            zastosowanie="pisanie",
+            tags="polski",
+            content=(
+                "Popraw błędy ortograficzne, interpunkcyjne i stylistyczne w tekście. "
+                "Zachowaj oryginalny styl i sens.\n\nTekst do korekty:\n[TEKST]"
+            ),
+            comment="Uniwersalny szablon — dobre na start",
+        ),
+    ]
+
+
+def _sample_prompts_en() -> list[Prompt]:
+    return [
+        Prompt(
+            name="LinkedIn post — marketing",
+            status="praca",
+            format="tekst",
+            model="GPT-5.5",
+            zastosowanie="marketing",
+            tags="social, english",
+            content=(
+                "Write a LinkedIn post in English. Tone: expert but approachable.\n\n"
+                "Topic: [TOPIC]\nTarget audience: [AUDIENCE]\nCall to action: [CTA]"
+            ),
+            comment='Example for marketers — use "Copy and use in AI"',
+            pinned=True,
+        ),
+        Prompt(
+            name="Python code review",
+            status="praca",
+            format="kod",
+            model="Claude Opus 4.7",
+            zastosowanie="kodowanie",
+            tags="code",
+            content=(
+                "You are a senior Python developer. Review the code below for "
+                "bugs, performance, refactoring opportunities, PEP8 and security.\n\n```python\n[CODE]\n```"
+            ),
+            comment="For developers — open Claude after copying",
+        ),
+        Prompt(
+            name="n8n — workflow step description",
+            status="uniwersalne",
+            format="tekst",
+            model="GPT-5.5 Mini",
+            zastosowanie="automatyzacja",
+            tags="n8n, template",
+            content=(
+                "Write a concise description of an n8n automation step.\n\n"
+                "Workflow goal: [GOAL]\nInput: [INPUT]\nOutput: [OUTPUT]"
+            ),
+            comment="Send to n8n from the Tools menu once the webhook is configured",
+        ),
+        Prompt(
+            name="English proofreader",
+            status="uniwersalne",
+            format="tekst",
+            model="Claude Sonnet 4.6",
+            zastosowanie="pisanie",
+            tags="english",
+            content=(
+                "Fix spelling, punctuation and style issues in the text below. "
+                "Keep the original style and meaning.\n\nText to proofread:\n[TEXT]"
+            ),
+            comment="Universal template — good starting point",
+        ),
+    ]
+
+
 class PromptStore:
     def __init__(self, path: Path):
         self.path = path
@@ -77,6 +194,7 @@ class PromptStore:
         self.prompts: list[Prompt] = []
         self.n8n_url = ""
         self.theme = "jasny"
+        self.language = i18n.DEFAULT_LANGUAGE
         self.cloud_folders: dict[str, str] = {"google_drive": "", "onedrive": ""}
         self.onboarding_done = False
         self.checklist: dict[str, bool] = dict(DEFAULT_CHECKLIST)
@@ -104,6 +222,7 @@ class PromptStore:
             raw_prompts = data.get("prompts", [])
             self.n8n_url = data.get("n8n_url", "")
             self.theme = data.get("theme", "jasny")
+            self.language = data.get("language", i18n.DEFAULT_LANGUAGE)
             stored_cloud = data.get("cloud_folders", {}) or {}
             self.onboarding_done = bool(data.get("onboarding_done", False))
             merged = dict(DEFAULT_CHECKLIST)
@@ -120,6 +239,9 @@ class PromptStore:
                 self.onboarding_done = True
         if self.theme not in THEMES:
             self.theme = "jasny"
+        if self.language not in i18n.LANGUAGES:
+            self.language = i18n.DEFAULT_LANGUAGE
+        i18n.set_language(self.language)
 
         self.cloud_folders = {
             "google_drive": str(stored_cloud.get("google_drive", "")).strip(),
@@ -139,6 +261,7 @@ class PromptStore:
             "exported_at": datetime.now().isoformat(),
             "n8n_url": self.n8n_url,
             "theme": self.theme,
+            "language": self.language,
             "cloud_folders": self.cloud_folders,
             "onboarding_done": self.onboarding_done,
             "checklist": self.checklist,
@@ -216,61 +339,7 @@ class PromptStore:
     def sample_data(self, *, force: bool = False) -> None:
         if self.prompts and not force:
             return
-        samples = [
-            Prompt(
-                name="Post LinkedIn — marketing",
-                status="praca",
-                format="tekst",
-                model="GPT-5.5",
-                zastosowanie="marketing",
-                tags="social, polski",
-                content=(
-                    "Napisz post na LinkedIn po polsku. Ton: ekspercki, ale przystępny.\n\n"
-                    "Temat: [TEMAT]\nGrupa docelowa: [ODBIORCA]\nCall to action: [CTA]"
-                ),
-                comment="Przykład dla marketerów — użyj „Kopiuj i użyj w AI”",
-                pinned=True,
-            ),
-            Prompt(
-                name="Analiza kodu Python",
-                status="praca",
-                format="kod",
-                model="Claude Opus 4.7",
-                zastosowanie="kodowanie",
-                tags="kod",
-                content=(
-                    "Jesteś senior developerem Python. Przeanalizuj poniższy kod pod kątem "
-                    "błędów, wydajności, refaktoryzacji, PEP8 i bezpieczeństwa.\n\n```python\n[KOD]\n```"
-                ),
-                comment="Dla programistów — otwórz Claude po skopiowaniu",
-            ),
-            Prompt(
-                name="n8n — opis zadania do workflow",
-                status="uniwersalne",
-                format="tekst",
-                model="GPT-5.5 Mini",
-                zastosowanie="automatyzacja",
-                tags="n8n, szablon",
-                content=(
-                    "Przygotuj zwięzły opis kroku automatyzacji n8n.\n\n"
-                    "Cel workflow: [CEL]\nWejście: [WEJSCIE]\nWyjście: [WYJSCIE]"
-                ),
-                comment="Wyślij do n8n z menu Narzędzia po skonfigurowaniu webhooka",
-            ),
-            Prompt(
-                name="Korektor ortografii PL",
-                status="uniwersalne",
-                format="tekst",
-                model="Claude Sonnet 4.6",
-                zastosowanie="pisanie",
-                tags="polski",
-                content=(
-                    "Popraw błędy ortograficzne, interpunkcyjne i stylistyczne w tekście. "
-                    "Zachowaj oryginalny styl i sens.\n\nTekst do korekty:\n[TEKST]"
-                ),
-                comment="Uniwersalny szablon — dobre na start",
-            ),
-        ]
+        samples = _sample_prompts_en() if i18n.is_english() else _sample_prompts_pl()
         for index, prompt in enumerate(samples):
             prompt.created = now_ms() - index * 3600 * 1000
         self.prompts = samples
