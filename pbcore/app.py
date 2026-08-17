@@ -42,12 +42,16 @@ from pbcore.models import *  # noqa: F401,F403
 class PrompBaseApp:
     def __init__(self, root: Tk):
         self.root = root
+        # PromptStore.load() wywołuje i18n.set_language() — musi zajść
+        # PRZED jakimkolwiek t()/title(), inaczej pierwszy render (w tym
+        # pasek tytułu okna) dostaje domyślny język, nie zapisany wybór.
+        self.store = PromptStore(app_data_dir() / "promptbase.json")
+
         self.root.title(f"{APP_NAME}{t(' - Biblioteka Promptów AI')}")
         self.root.geometry("1180x760")
         self.root.minsize(980, 620)
         self._set_window_icon()
 
-        self.store = PromptStore(app_data_dir() / "promptbase.json")
         self.filtered: list[Prompt] = []
         self.selected_id: str | None = None
 
@@ -336,7 +340,7 @@ class PrompBaseApp:
             ("added_prompt", "4. Dodaj własny prompt"),
         )
         for idx, (key, label) in enumerate(checklist_steps):
-            row_label = ttk.Label(self.checklist_frame, text=f"{t('○ ')}{label}", style="Muted.TLabel", wraplength=200)
+            row_label = ttk.Label(self.checklist_frame, text=f"{t('○ ')}{t(label)}", style="Muted.TLabel", wraplength=200)
             row_label.grid(row=idx, column=0, sticky=W, pady=1)
             self.checklist_labels[key] = row_label
 
@@ -628,7 +632,7 @@ class PrompBaseApp:
                 self.checklist_frame.grid()
         for key, base in labels.items():
             mark = "✓" if done.get(key) else "○"
-            self.checklist_labels[key].configure(text=f"{mark} {base}")
+            self.checklist_labels[key].configure(text=f"{mark} {t(base)}")
 
     def show_onboarding(self) -> None:
         def _done() -> None:

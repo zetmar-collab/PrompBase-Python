@@ -498,6 +498,48 @@ _EN: dict[str, str] = {
         "View -> Light/Dark mode changes the app's appearance.\n"
         "Data is stored locally in a JSON file. CSV import/export matches the PWA version."
     ),
+    # --- audyt pokrycia: krótkie etykiety i separatory pominięte w pierwszym
+    # przebiegu (odnalezione po instalacji pakietu MSIX z prawdziwą biblioteką) --
+    " z ": " of ",
+    "Autor: ": "Author: ",
+    "Ciemny": "Dark",
+    "Filtry": "Filters",
+    "Grafit": "Graphite",
+    "Historia": "History",
+    "Historia…": "History…",
+    "Jasny": "Light",
+    "Kopiuj": "Copy",
+    "Otwarto ": "Opened ",
+    "Plik: ": "File: ",
+    "Przypnij": "Pin",
+    "Silnik": "Engine",
+    "Sortuj": "Sort",
+    "Ulepszony": "Improved",
+    "Wersja ": "Version ",
+    "Wybierz…": "Choose…",
+    "Zaimportowano ": "Imported ",
+    "Znaleziono ": "Found ",
+    "\nZnaleziono ": "\nFound ",
+    "1. Wybierz prompt z listy": "1. Pick a prompt from the list",
+    "2. Skopiuj treść do schowka": "2. Copy the content to the clipboard",
+    "3. Otwórz ChatGPT / Claude": "3. Open ChatGPT / Claude",
+    "4. Dodaj własny prompt": "4. Add your own prompt",
+    # Separatory i symbole bez tłumaczenia — identity, tylko żeby audyt
+    # pokrycia (tests/test_i18n_coverage.py) nie zgłaszał ich jako braku.
+    " | ": " | ",
+    ".": ".",
+    ").": ").",
+    ".\n\n": ".\n\n",
+    ")": ")",
+    " — ": " — ",
+    " ↗": " ↗",
+    "”.": '".',
+    "”?": '"?',
+    "○ ": "○ ",
+    "AI": "AI",
+    "n8n": "n8n",
+    " (HTTP ": " (HTTP ",
+    "Tag": "Tag",
 }
 
 # Statusy i słowniki wartości (osobno, bo używane też przy filtrach).

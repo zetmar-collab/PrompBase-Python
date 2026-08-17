@@ -16,7 +16,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
 # Wersja z pbcore/core.py (spójna z build_windows.ps1).
-$Version = "2.9.0"
+$Version = "2.9.1"
 $versionFile = Join-Path $Root "pbcore\core.py"
 if (Test-Path $versionFile) {
     $match = Select-String -Path $versionFile -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1
@@ -86,11 +86,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "Gotowe: $msixPath"
+Write-Host "Gotowe: $msixPath (NIEPODPISANY — dokladnie taki plik wysylasz do Partner Center)"
 Write-Host "Wyslij ten plik w Partner Center (Microsoft Store) — Store podpisze go ponownie przy publikacji."
 
-# 6) Opcjonalnie: podpisz lokalnym certyfikatem testowym do sideloadingu.
+# 6) Opcjonalnie: osobna, PODPISANA kopia do sideloadingu/testow lokalnych.
+#    Plik $msixPath (do Store) NIGDY nie jest podpisywany — Store wymaga
+#    dostac niepodpisany pakiet, wlasny podpis Partner Center dodaje sam.
 if ($Sign) {
+    $testMsixPath = Join-Path $outDir "PrompBase-$Version-Test.msix"
+    Copy-Item -Path $msixPath -Destination $testMsixPath -Force
+    $msixPath = $testMsixPath
     $signtool = Get-ChildItem -Path $sdkRoot -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -match "\\x64\\" } |
         Sort-Object FullName -Descending |
@@ -101,20 +106,35 @@ if ($Sign) {
     }
 
     $certSubject = "CN=15A53D32-C868-48EE-B700-5DBB5449CA1B"
-    $pfxPath = Join-Path $Root "dist\PrompBase-test.pfx"
-    $pfxPassword = "prompbase-test"
 
-    Write-Host ""
-    Write-Host "Tworzenie lokalnego certyfikatu testowego (tylko do sideloadingu, NIE do Store)..."
-    $cert = New-SelfSignedCertificate -Type Custom -Subject $certSubject `
-        -KeyUsage DigitalSignature -FriendlyName "PrompBase test cert" `
-        -CertStoreLocation "Cert:\CurrentUser\My" `
-        -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+    # Użyj istniejącego certyfikatu z magazynu CurrentUser\My (ten sam CN co
+    # Publisher w manifeście), jeśli już tam jest — bez tworzenia duplikatu.
+    $existing = Get-ChildItem Cert:\CurrentUser\My |
+        Where-Object { $_.Subject -eq $certSubject -and $_.HasPrivateKey } |
+        Sort-Object NotAfter -Descending |
+        Select-Object -First 1
 
-    $securePwd = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
-    Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePwd | Out-Null
+    if ($existing) {
+        Write-Host ""
+        Write-Host "Uzywam istniejacego certyfikatu testowego: $($existing.Thumbprint)"
+        $thumbprint = $existing.Thumbprint
+    } else {
+        Write-Host ""
+        Write-Host "Tworzenie lokalnego certyfikatu testowego (tylko do sideloadingu, NIE do Store)..."
+        $cert = New-SelfSignedCertificate -Type Custom -Subject $certSubject `
+            -KeyUsage DigitalSignature -FriendlyName "PrompBase test cert" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+        $thumbprint = $cert.Thumbprint
 
-    & $signtool sign /fd SHA256 /a /f $pfxPath /p $pfxPassword $msixPath
+        $pfxPath = Join-Path $Root "dist\PrompBase-test.pfx"
+        $pfxPassword = "prompbase-test"
+        $securePwd = ConvertTo-SecureString -String $pfxPassword -Force -AsPlainText
+        Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $securePwd | Out-Null
+        Write-Host "Certyfikat wyeksportowany takze do: $pfxPath (haslo: $pfxPassword)"
+    }
+
+    & $signtool sign /fd SHA256 /sha1 $thumbprint /s My $msixPath
     if ($LASTEXITCODE -ne 0) {
         Write-Host "signtool zwrocil blad ($LASTEXITCODE)."
         exit $LASTEXITCODE
@@ -122,7 +142,16 @@ if ($Sign) {
 
     Write-Host ""
     Write-Host "Podpisano pakiet testowy: $msixPath"
-    Write-Host "Aby zainstalować lokalnie (sideload), zaufaj certyfikatowi i uruchom:"
-    Write-Host "  Import-Certificate -FilePath '$pfxPath' -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
-    Write-Host "  Add-AppxPackage -Path '$msixPath'"
+
+    $trusted = Get-ChildItem Cert:\LocalMachine\TrustedPeople -ErrorAction SilentlyContinue |
+        Where-Object { $_.Thumbprint -eq $thumbprint }
+    if ($trusted) {
+        Write-Host "Certyfikat jest juz zaufany (LocalMachine\TrustedPeople) — mozna instalowac od razu:"
+        Write-Host "  Add-AppxPackage -Path '$msixPath'"
+    } else {
+        Write-Host "Aby zainstalowac lokalnie (sideload), zaufaj certyfikatowi i uruchom:"
+        Write-Host "  Export-Certificate -Cert Cert:\CurrentUser\My\$thumbprint -FilePath dist\PrompBase-test.cer"
+        Write-Host "  Import-Certificate -FilePath dist\PrompBase-test.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
+        Write-Host "  Add-AppxPackage -Path '$msixPath'"
+    }
 }

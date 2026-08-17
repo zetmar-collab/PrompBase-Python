@@ -15,7 +15,7 @@ if TYPE_CHECKING:  # tylko dla adnotacji — brak cyklu w czasie wykonania
     from pbcore.models import Prompt
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.9.0"
+APP_VERSION = "2.9.1"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
 APP_AUTHOR_URL = "https://github.com/zetmar-collab"
 APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
