@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 from urllib import request
 from urllib.error import HTTPError, URLError
@@ -324,6 +325,53 @@ def api_key_source() -> str:
     if (os.environ.get(OPENROUTER_API_KEY_ENV) or "").strip():
         return "env"
     return "plik" if load_stored_api_key() else ""
+
+
+# --- zgłaszanie nieodpowiednich treści AI (Microsoft Store 11.16) ----------
+
+
+def content_reports_file() -> Path:
+    """Plik z lokalnymi zgłoszeniami treści AI (JSON Lines)."""
+    return app_data_dir() / "ai-content-reports.jsonl"
+
+
+def build_content_report(
+    *,
+    category: str,
+    details: str,
+    generated_text: str,
+    max_excerpt: int = 4000,
+) -> dict:
+    """Buduje wpis zgłoszenia (czysta funkcja — testowalna bez I/O)."""
+    excerpt = (generated_text or "").strip()
+    truncated = len(excerpt) > max_excerpt
+    if truncated:
+        excerpt = excerpt[:max_excerpt]
+    return {
+        "reported_at": datetime.now().isoformat(),
+        "app_version": APP_VERSION,
+        "category": (category or "").strip(),
+        "details": (details or "").strip(),
+        "generated_text": excerpt,
+        "generated_text_truncated": truncated,
+    }
+
+
+def save_content_report(*, category: str, details: str, generated_text: str) -> Path:
+    """Dopisuje zgłoszenie do lokalnego pliku i zwraca jego ścieżkę.
+
+    Zapis lokalny (a nie wysyłka na serwer) jest zgodny z obietnicą
+    prywatności aplikacji: nic nie wychodzi z komputera bez decyzji
+    użytkownika. Z okna zgłoszenia można potem otworzyć GitHub Issues.
+    """
+    path = content_reports_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    entry = build_content_report(
+        category=category, details=details, generated_text=generated_text
+    )
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return path
 
 
 class AiError(Exception):

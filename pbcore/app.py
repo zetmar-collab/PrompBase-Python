@@ -243,8 +243,12 @@ class PrompBaseApp:
         tools_menu.add_command(label=t('Wyślij zaznaczony do n8n'), command=self.send_selected_to_n8n)
         tools_menu.add_command(label=t('Synchronizuj bibliotekę do n8n'), command=self.sync_all_to_n8n)
         tools_menu.add_command(label=t('Eksportuj JSON dla n8n...'), command=self.export_n8n_json)
-        tools_menu.add_separator()
-        tools_menu.add_command(label=t('Paczki promptów Pro (wkrótce)...'), command=self.show_pro_coming_soon)
+        if not is_msix_package():
+            # Zasada Microsoft Store 10.1.5 (Software Distribution) zabrania
+            # promowania planów/zakupów poza systemem płatności Store —
+            # w wersji sklepowej (MSIX) ta pozycja jest ukryta.
+            tools_menu.add_separator()
+            tools_menu.add_command(label=t('Paczki promptów Pro (wkrótce)...'), command=self.show_pro_coming_soon)
         menu.add_cascade(label=t('Narzędzia'), menu=tools_menu)
 
         view_menu = Menu(menu, tearoff=False)
@@ -270,8 +274,11 @@ class PrompBaseApp:
         help_menu.add_command(label=t('Pomoc i skróty'), accelerator="?", command=self.show_help)
         help_menu.add_separator()
         help_menu.add_command(label=t('Strona produktu'), command=self.open_product_page)
-        help_menu.add_command(label=t('Pobierz najnowszą wersję'), command=self.open_download_page)
-        help_menu.add_command(label=t('Cennik (Free / Pro)'), command=self.open_pricing_doc)
+        if not is_msix_package():
+            # Jak wyżej — link do pobrania spoza Store i cennik planu Pro
+            # nie mogą pojawiać się w wersji sklepowej (MSIX).
+            help_menu.add_command(label=t('Pobierz najnowszą wersję'), command=self.open_download_page)
+            help_menu.add_command(label=t('Cennik (Free / Pro)'), command=self.open_pricing_doc)
         menu.add_cascade(label=t('Pomoc'), menu=help_menu)
         self.root.config(menu=menu)
 
@@ -1735,9 +1742,12 @@ class PrompBaseApp:
         landing_hint = (
             f"\nStrona produktu: {LANDING_PAGE_PATH}\n" if LANDING_PAGE_PATH.is_file() else ""
         )
+        # Link do pobrania spoza Store nie może pojawić się w wersji
+        # sklepowej (MSIX) — zasada 10.1.5 Software Distribution.
+        download_hint = "" if is_msix_package() else t('\nPobierz: ') + APP_RELEASE_URL
         messagebox.showinfo(
             t("PrompBase - pomoc"),
-            (str(t('PrompBase v')) + str(APP_VERSION) + str(t('\nAutor: ')) + str(APP_AUTHOR) + str(t('\nDokumentacja: ')) + str(APP_HELP_URL) + str(t('\nPobierz: ')) + str(APP_RELEASE_URL) + str(landing_hint))
+            (str(t('PrompBase v')) + str(APP_VERSION) + str(t('\nAutor: ')) + str(APP_AUTHOR) + str(t('\nDokumentacja: ')) + str(APP_HELP_URL) + download_hint + str(landing_hint))
             + t(
                 "\n\nGłówna akcja: „Kopiuj i użyj w AI” — kopiuje prompt i otwiera platformę.\n"
                 "Przewodnik startowy: menu Pomoc.\n\n"

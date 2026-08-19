@@ -7,6 +7,8 @@ klucza OpenRouter.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from pbcore import ai
@@ -292,3 +294,36 @@ def test_stored_key_never_lands_in_backup(key_store):
     payload = _json.dumps(store.to_payload(), ensure_ascii=False)
     assert "sk-or-TAJNY" not in payload
     assert "sk-or-TAJNY" not in (key_store / "promptbase.json").read_text(encoding="utf-8")
+
+
+# --- zgłaszanie treści AI (Microsoft Store 11.16) ---------------------------
+
+
+def test_build_content_report_shape():
+    entry = ai.build_content_report(
+        category="Inny problem", details="opis", generated_text="wynik AI"
+    )
+    assert entry["category"] == "Inny problem"
+    assert entry["details"] == "opis"
+    assert entry["generated_text"] == "wynik AI"
+    assert entry["generated_text_truncated"] is False
+    assert entry["app_version"] == ai.APP_VERSION
+    assert entry["reported_at"]
+
+
+def test_build_content_report_truncates_long_output():
+    entry = ai.build_content_report(
+        category="c", details="", generated_text="x" * 9000, max_excerpt=100
+    )
+    assert len(entry["generated_text"]) == 100
+    assert entry["generated_text_truncated"] is True
+
+
+def test_save_content_report_appends_jsonl(tmp_path, monkeypatch):
+    monkeypatch.setattr(ai, "app_data_dir", lambda: tmp_path)
+    ai.save_content_report(category="A", details="d1", generated_text="t1")
+    path = ai.save_content_report(category="B", details="d2", generated_text="t2")
+
+    lines = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
+    assert [e["category"] for e in lines] == ["A", "B"]
+    assert path.name == "ai-content-reports.jsonl"

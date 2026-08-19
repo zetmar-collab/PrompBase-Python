@@ -161,6 +161,28 @@ _EN: dict[str, str] = {
     "Otwarto folder: ": "Folder opened: ",
     "Eksport dla PWA — skopiowano do schowka.": "PWA export — copied to clipboard.",
     "Motyw zmieniony: ": "Theme changed: ",
+    # --- zgłaszanie treści AI (Microsoft Store 11.16) ----------------------
+    "⚠ Zgłoś problem": "⚠ Report an issue",
+    "Zgłoś nieodpowiednią treść": "Report inappropriate content",
+    "Zgłoś treść wygenerowaną przez AI, która jest nieodpowiednia, szkodliwa lub błędna. Zgłoszenie zapisujemy lokalnie na Twoim komputerze — możesz je potem wysłać do autora aplikacji.": (
+        "Report AI-generated content that is inappropriate, harmful or incorrect. "
+        "The report is saved locally on your computer — you can then send it to "
+        "the app author."
+    ),
+    "Rodzaj problemu": "Type of issue",
+    "Opis (opcjonalnie)": "Description (optional)",
+    "Zapisz zgłoszenie": "Save report",
+    "Treść obraźliwa lub nienawistna": "Offensive or hateful content",
+    "Treść seksualna lub nieodpowiednia dla nieletnich": "Sexual content or content unsuitable for minors",
+    "Przemoc lub niebezpieczne instrukcje": "Violence or dangerous instructions",
+    "Nieprawdziwe lub wprowadzające w błąd informacje": "False or misleading information",
+    "Naruszenie prywatności lub praw autorskich": "Privacy or copyright violation",
+    "Inny problem": "Other issue",
+    "Nie udało się zapisać zgłoszenia:\n": "Could not save the report:\n",
+    "Zgłoszenie zapisane lokalnie:\n": "Report saved locally:\n",
+    "\n\nCzy chcesz teraz otworzyć stronę zgłoszeń GitHub, aby przesłać je autorowi aplikacji?": (
+        "\n\nWould you like to open the GitHub issues page now to send it to the app author?"
+    ),
     "Język zmieniony. Uruchom ponownie PrompBase, aby zastosować zmianę we wszystkich oknach.": (
         "Language changed. Restart PrompBase to apply the change everywhere."
     ),

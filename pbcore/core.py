@@ -15,11 +15,13 @@ if TYPE_CHECKING:  # tylko dla adnotacji — brak cyklu w czasie wykonania
     from pbcore.models import Prompt
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.9.1"
+APP_VERSION = "2.9.2"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
 APP_AUTHOR_URL = "https://github.com/zetmar-collab"
 APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
 APP_HELP_URL = "https://github.com/zetmar-collab/PrompBase-Python#readme"
+# Zgłaszanie nieodpowiednich treści wygenerowanych przez AI (Store 11.16).
+REPORT_ISSUE_URL = "https://github.com/zetmar-collab/PrompBase-Python/issues/new"
 DEFAULT_CHECKLIST = {
     "selected": False,
     "copied": False,
@@ -51,6 +53,32 @@ def resolve_app_dir() -> Path:
     # core.py mieszka w pbcore/, więc katalog aplikacji to poziom wyżej
     # (tam gdzie models.json, assets/, landing/, docs/).
     return Path(__file__).resolve().parent.parent
+
+
+def is_msix_package() -> bool:
+    """Czy aplikacja działa jako zainstalowany pakiet MSIX (Desktop Bridge).
+
+    Wykorzystywane, żeby ukryć w wersji sklepowej elementy UI niezgodne
+    z polityką Microsoft Store (np. link do pobrania spoza Store, cennik
+    planu Pro sprzedawanego poza systemem płatności Store) — zob.
+    certyfikacja Store, zasada 10.1.5 Software Distribution.
+
+    Wywołuje Win32 GetCurrentPackageFullName z zerowym buforem: wewnątrz
+    pakietu MSIX zwraca ERROR_INSUFFICIENT_BUFFER (122, bo bufor jest za
+    mały) i ustawia wymagany rozmiar; poza pakietem zwraca
+    APPMODEL_ERROR_NO_PACKAGE (15700). Kod błędu to bezpośredni wynik
+    wywołania — nie GetLastError().
+    """
+    if platform.system().lower() != "windows":
+        return False
+    try:
+        import ctypes
+
+        length = ctypes.c_uint32(0)
+        result = ctypes.windll.kernel32.GetCurrentPackageFullName(ctypes.byref(length), None)
+        return result != 15700  # APPMODEL_ERROR_NO_PACKAGE
+    except (AttributeError, OSError):
+        return False
 
 
 APP_DIR = resolve_app_dir()

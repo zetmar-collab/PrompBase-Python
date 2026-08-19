@@ -7,6 +7,7 @@ wraca do wątku Tk przez `after`, bo widżetów nie wolno dotykać z innego wąt
 from __future__ import annotations
 
 import threading
+import webbrowser
 from tkinter import (
     END,
     BooleanVar,
@@ -18,7 +19,7 @@ from tkinter import (
 )
 
 from pbcore import ai
-from pbcore.core import APP_NAME, apply_widget_theme, theme_colors
+from pbcore.core import APP_NAME, REPORT_ISSUE_URL, apply_widget_theme, theme_colors
 from pbcore.i18n import t
 
 
@@ -218,7 +219,17 @@ class AiResultDialog(Toplevel):
         self.status.grid(row=2, column=0, columnspan=2, sticky=W, pady=(10, 0))
 
         self.buttons = ttk.Frame(body)
-        self.buttons.grid(row=3, column=0, columnspan=2, sticky="e", pady=(12, 0))
+        self.buttons.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        # Wymóg Microsoft Store 11.16 (Live Generative AI Content): użytkownik
+        # musi mieć możliwość zgłoszenia nieodpowiedniej treści wygenerowanej
+        # przez AI. Przycisk po lewej, aktywny dopiero gdy jest wynik.
+        self.report_btn = ttk.Button(
+            self.buttons,
+            text=t('⚠ Zgłoś problem'),
+            command=self._report_content,
+            state="disabled",
+        )
+        self.report_btn.pack(side="left")
         self.cancel_btn = ttk.Button(self.buttons, text=t('Anuluj'), command=self.destroy)
         self.cancel_btn.pack(side="right", padx=(8, 0))
         self.new_btn = ttk.Button(self.buttons, text=t('Zapisz jako nowy'), command=self._save_new, state="disabled")
@@ -270,6 +281,11 @@ class AiResultDialog(Toplevel):
         self.status.configure(text=t('Gotowe. Wybierz, co zrobić z wynikiem.'))
         self.replace_btn.configure(state="normal")
         self.new_btn.configure(state="normal")
+        self.report_btn.configure(state="normal")
+
+    def _report_content(self) -> None:
+        """Zgłoszenie nieodpowiedniej treści wygenerowanej przez AI."""
+        ReportContentDialog(self, generated_text=self.result_text, theme_getter=self.theme_getter)
 
     def _set_right(self, value: str) -> None:
         self.right.configure(state="normal")
@@ -283,4 +299,115 @@ class AiResultDialog(Toplevel):
 
     def _save_new(self) -> None:
         self.decision = "new"
+        self.destroy()
+
+
+class ReportContentDialog(Toplevel):
+    """Zgłoszenie nieodpowiedniej treści wygenerowanej przez AI.
+
+    Wymagane przez zasadę Microsoft Store 11.16 (Live Generative AI Content):
+    produkty z generatywną AI muszą dać użytkownikowi sposób zgłoszenia
+    nieodpowiedniego wyniku.
+
+    Zgłoszenie zapisujemy do lokalnego pliku JSONL w folderze danych
+    (aplikacja jest offline-first i nie wysyła danych na serwery autora),
+    a użytkownik może je jednym kliknięciem wysłać do autora przez GitHub.
+    """
+
+    CATEGORIES = (
+        "Treść obraźliwa lub nienawistna",
+        "Treść seksualna lub nieodpowiednia dla nieletnich",
+        "Przemoc lub niebezpieczne instrukcje",
+        "Nieprawdziwe lub wprowadzające w błąd informacje",
+        "Naruszenie prywatności lub praw autorskich",
+        "Inny problem",
+    )
+
+    def __init__(self, parent, *, generated_text: str, theme_getter=None):
+        super().__init__(parent)
+        self.theme_getter = theme_getter
+        self.generated_text = generated_text
+        self.title(t('Zgłoś nieodpowiednią treść'))
+        self.geometry("640x560")
+        self.minsize(560, 480)
+
+        body = ttk.Frame(self, padding=16)
+        body.pack(fill="both", expand=True)
+        body.columnconfigure(0, weight=1)
+        body.rowconfigure(4, weight=1)
+
+        ttk.Label(
+            body,
+            text=t(
+                "Zgłoś treść wygenerowaną przez AI, która jest nieodpowiednia, "
+                "szkodliwa lub błędna. Zgłoszenie zapisujemy lokalnie na Twoim "
+                "komputerze — możesz je potem wysłać do autora aplikacji."
+            ),
+            wraplength=580,
+            justify="left",
+        ).grid(row=0, column=0, sticky=W, pady=(0, 12))
+
+        ttk.Label(body, text=t('Rodzaj problemu'), font=("Segoe UI", 10, "bold")).grid(
+            row=1, column=0, sticky=W
+        )
+        self.category_var = StringVar(value=self.CATEGORIES[0])
+        ttk.Combobox(
+            body,
+            textvariable=self.category_var,
+            values=[t(c) for c in self.CATEGORIES],
+            state="readonly",
+        ).grid(row=2, column=0, sticky="ew", pady=(4, 12))
+
+        ttk.Label(body, text=t('Opis (opcjonalnie)'), font=("Segoe UI", 10, "bold")).grid(
+            row=3, column=0, sticky=W
+        )
+
+        from tkinter import Text
+
+        self.details = Text(body, wrap="word", height=6, relief="flat", borderwidth=1)
+        self.details.grid(row=4, column=0, sticky="nsew", pady=(4, 12))
+        if theme_getter:
+            apply_widget_theme(self.details, theme_getter())
+        else:
+            apply_widget_theme(self.details, theme_colors("jasny"))
+
+        buttons = ttk.Frame(body)
+        buttons.grid(row=5, column=0, sticky="e")
+        ttk.Button(buttons, text=t('Anuluj'), command=self.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(buttons, text=t('Zapisz zgłoszenie'), command=self._submit).pack(side="right")
+
+        self.bind("<Escape>", lambda _event: self.destroy())
+        self.transient(parent)
+        self.grab_set()
+
+    def _submit(self) -> None:
+        details = self.details.get("1.0", END).strip()
+        try:
+            path = ai.save_content_report(
+                category=self.category_var.get(),
+                details=details,
+                generated_text=self.generated_text,
+            )
+        except OSError as exc:
+            messagebox.showerror(
+                APP_NAME,
+                t('Nie udało się zapisać zgłoszenia:\n') + str(exc),
+                parent=self,
+            )
+            return
+
+        send = messagebox.askyesno(
+            APP_NAME,
+            t(
+                "Zgłoszenie zapisane lokalnie:\n"
+            )
+            + str(path)
+            + t(
+                "\n\nCzy chcesz teraz otworzyć stronę zgłoszeń GitHub, "
+                "aby przesłać je autorowi aplikacji?"
+            ),
+            parent=self,
+        )
+        if send:
+            webbrowser.open(REPORT_ISSUE_URL)
         self.destroy()
