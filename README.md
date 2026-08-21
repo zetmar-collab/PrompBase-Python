@@ -1,5 +1,7 @@
 # PrompBase Python
 
+[![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-Pobierz-0078D4?logo=microsoft&logoColor=white)](https://apps.microsoft.com/store/detail/9NZQZN1XFHPH?cid=DevShareMCLPCS)
+
 **Przestań szukać promptów w notatkach.** Lokalna biblioteka promptów AI dla **Windows** i **macOS** — znajdź, skopiuj, wklej do ChatGPT lub Claude w kilka sekund.
 
 Autor: [Marek Zettel](https://github.com/zetmar-collab)
@@ -8,7 +10,9 @@ Bez konta, bez serwera — dane zapisują się na Twoim komputerze.
 
 ## Pobierz (główne CTA)
 
-**[Pobierz PrompBase.exe na Windows](https://github.com/zetmar-collab/PrompBase-Python/releases)** — nie wymaga instalacji Pythona.
+**[Zainstaluj z Microsoft Store](https://apps.microsoft.com/store/detail/9NZQZN1XFHPH?cid=DevShareMCLPCS)** — automatyczne aktualizacje, instalacja jednym kliknięciem.
+
+Alternatywnie: **[pobierz instalator lub EXE z GitHub Releases](https://github.com/zetmar-collab/PrompBase-Python/releases)** — nie wymaga instalacji Pythona.
 
 Strona produktu (landing): otwórz plik [`landing/index.html`](landing/index.html) w przeglądarce lub w aplikacji: **Pomoc → Strona produktu**.
 
@@ -52,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.9.0-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.9.2-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
@@ -64,7 +68,7 @@ Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
-Wynik: `dist\PrompBase-2.9.0-Setup.exe` — instalacja per-user (bez administratora),
+Wynik: `dist\PrompBase-2.9.2-Setup.exe` — instalacja per-user (bez administratora),
 skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
 
 ### Pakiet MSIX (Microsoft Store)
@@ -76,7 +80,7 @@ zwykle zainstalowany z Visual Studio lub [samodzielnie](https://aka.ms/windowssd
 powershell -ExecutionPolicy Bypass -File scripts\build_msix.ps1
 ```
 
-Wynik: `dist\PrompBase-2.9.0.msix` — wyślij ten plik w
+Wynik: `dist\PrompBase-2.9.2.msix` — wyślij ten plik w
 [Partner Center](https://partner.microsoft.com/dashboard) (Microsoft Store
 podpisuje paczkę ponownie przy publikacji, więc lokalny podpis nie jest
 wymagany). Tożsamość pakietu: `MarekZettel-zetmar.PrompBase`
@@ -97,9 +101,20 @@ python -m pytest
 python -m ruff check
 ```
 
-## Funkcje (v2.9)
+## Funkcje (v2.9.2)
 
-### Język interfejsu (nowość)
+### Zgodność z Microsoft Store
+
+Wersja sklepowa (MSIX) automatycznie dostosowuje się do zasad Store:
+
+- **Zgłaszanie treści AI** — każde okno wyniku asystenta AI ma przycisk
+  „⚠ Zgłoś treść”, wymagany przez zasadę 11.16 (Live Generative AI Content)
+- **Deklaracja generatywnej AI** zaznaczona w Partner Center
+- W wersji z Store ukryte są pozycje promujące dystrybucję poza sklepem
+  (pobieranie z GitHub, cennik Pro) — zasada 10.1.5; w wersji EXE/instalatorze
+  działają normalnie. Wykrywanie przez `is_msix_package()`.
+
+### Język interfejsu
 
 - **Widok → Język → Polski / English** — przełącza menu natychmiast; pełny efekt
   (etykiety, przyciski, nagłówki listy) po ponownym uruchomieniu aplikacji
