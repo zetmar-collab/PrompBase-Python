@@ -39,6 +39,10 @@ OLLAMA_DEFAULT_HOST = "http://localhost:11434"
 OLLAMA_DEFAULT_MODEL = "llama3.1"
 
 AI_HTTP_TIMEOUT = 120
+# Adres Ollamy ustawia użytkownik, więc endpoint nie musi być zaufany —
+# bez limitu `response.read()` wciągnęłoby do pamięci dowolnie dużą odpowiedź.
+MAX_RESPONSE_BYTES = 8 * 1024 * 1024
+MAX_ERROR_BYTES = 8 * 1024
 AI_MAX_TOKENS = 2000
 
 # --- akcje AI --------------------------------------------------------------
@@ -391,11 +395,17 @@ def _post_json(url: str, payload: dict, headers: dict, timeout: int) -> dict:
     req = request.Request(url, data=data, headers=base_headers, method="POST")
     try:
         with request.urlopen(req, timeout=timeout) as response:
-            body = response.read().decode("utf-8", errors="replace")
+            raw = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(raw) > MAX_RESPONSE_BYTES:
+                raise AiError(
+                    f"Odpowiedź serwera przekracza {MAX_RESPONSE_BYTES // (1024 * 1024)} MB "
+                    "— przerwano, żeby nie wyczerpać pamięci."
+                )
+            body = raw.decode("utf-8", errors="replace")
     except HTTPError as exc:
         detail = ""
         if exc.fp:
-            detail = exc.read().decode("utf-8", errors="replace")[:400]
+            detail = exc.read(MAX_ERROR_BYTES).decode("utf-8", errors="replace")[:400]
         raise AiError(f"Błąd HTTP {exc.code}: {detail or exc.reason}") from exc
     except TimeoutError as exc:
         raise AiError(f"Przekroczono limit czasu ({timeout}s).") from exc
@@ -457,7 +467,7 @@ def list_ollama_models(host: str = OLLAMA_DEFAULT_HOST, *, timeout: int = 10) ->
     req = request.Request(url, headers={"Accept": "application/json"})
     try:
         with request.urlopen(req, timeout=timeout) as response:
-            data = json.loads(response.read().decode("utf-8", errors="replace"))
+            data = json.loads(response.read(MAX_RESPONSE_BYTES).decode("utf-8", errors="replace"))
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
         return []
     return parse_ollama_models(data)

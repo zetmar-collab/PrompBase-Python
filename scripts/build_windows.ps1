@@ -4,7 +4,7 @@ $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
 
-$Version = "2.9.2"
+$Version = "2.10.0"
 $versionFile = Join-Path $Root "pbcore\core.py"
 if (Test-Path $versionFile) {
     $match = Select-String -Path $versionFile -Pattern 'APP_VERSION = "([^"]+)"' | Select-Object -First 1

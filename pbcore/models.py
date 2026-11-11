@@ -13,6 +13,21 @@ from pbcore import i18n
 from pbcore.core import *  # noqa: F401,F403
 
 
+def _as_timestamp(value) -> int:
+    """Znacznik czasu z niezaufanych danych; przy śmieciach — teraz.
+
+    Pole `created` w cudzej kopii zapasowej bywa datą tekstową albo
+    słownikiem. Wcześniej `int()` rzucało wyjątkiem i przerywało import
+    całej biblioteki, a w wersji okienkowej nie było tego nawet widać.
+    """
+    if value is None or isinstance(value, bool):
+        return now_ms()
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return now_ms()
+
+
 @dataclass
 class Prompt:
     name: str
@@ -39,15 +54,19 @@ class Prompt:
             id=str(data.get("id") or f"p_{uuid.uuid4().hex[:12]}"),
             name=str(data.get("name") or data.get("Nazwa") or "").strip(),
             content=str(data.get("content") or data.get("Treść Promptu") or data.get("Tresc Promptu") or "").strip(),
-            status=str(data.get("status") or "nowy").strip() or "nowy",
-            format=str(data.get("format") or "tekst").strip() or "tekst",
+            # Z pliku może przyjść klucz („praca"), etykieta polska („Praca")
+            # albo angielska („Work") — w danych trzymamy zawsze klucz.
+            # Bez tego prompt z importu wysyłał do n8n etykietę zamiast klucza
+            # i znikał z filtra w interfejsie angielskim.
+            status=status_key_from_display(str(data.get("status") or "nowy").strip() or "nowy"),
+            format=format_from_display(str(data.get("format") or "tekst").strip() or "tekst"),
             model=str(data.get("model") or data.get("Model AI") or "").strip(),
             zastosowanie=str(data.get("zastosowanie") or data.get("Zastosowanie") or "").strip(),
             tags=parse_tags_value(data.get("tags") or data.get("Tagi") or data.get("tagi") or ""),
             comment=str(data.get("comment") or data.get("Komentarz") or "").strip(),
             pinned=bool(data.get("pinned", False)),
             favorite=bool(data.get("favorite", False)),
-            created=int(data.get("created") or now_ms()),
+            created=_as_timestamp(data.get("created")),
             history=history,
         )
 
@@ -187,6 +206,10 @@ def _sample_prompts_en() -> list[Prompt]:
     ]
 
 
+# Puste "language" = wykryj z języka interfejsu przy pierwszym użyciu.
+DEFAULT_SPELL_SETTINGS: dict = {"enabled": True, "language": ""}
+
+
 class PromptStore:
     def __init__(self, path: Path):
         self.path = path
@@ -200,6 +223,8 @@ class PromptStore:
         self.checklist: dict[str, bool] = dict(DEFAULT_CHECKLIST)
         # Ustawienia silników AI (bez klucza API — ten czytamy ze środowiska).
         self.ai_settings: dict[str, str] = dict(DEFAULT_AI_SETTINGS)
+        # Sprawdzanie pisowni: włączone + kod słownika Hunspell (np. "pl_PL").
+        self.spell_settings: dict = dict(DEFAULT_SPELL_SETTINGS)
         self.load()
 
     def load(self) -> None:
@@ -235,6 +260,12 @@ class PromptStore:
                     key: str(ai_stored.get(key, default) or default)
                     for key, default in DEFAULT_AI_SETTINGS.items()
                 }
+            spell_stored = data.get("spell_settings")
+            if isinstance(spell_stored, dict):
+                self.spell_settings = {
+                    "enabled": bool(spell_stored.get("enabled", True)),
+                    "language": str(spell_stored.get("language", "") or "").strip(),
+                }
             if raw_prompts and "onboarding_done" not in data:
                 self.onboarding_done = True
         if self.theme not in THEMES:
@@ -266,6 +297,7 @@ class PromptStore:
             "onboarding_done": self.onboarding_done,
             "checklist": self.checklist,
             "ai_settings": self.ai_settings,
+            "spell_settings": self.spell_settings,
             "prompts": [prompt.to_dict() for prompt in self.prompts],
         }
 

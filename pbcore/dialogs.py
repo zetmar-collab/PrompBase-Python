@@ -25,6 +25,7 @@ from tkinter import (
 from pbcore.core import *  # noqa: F401,F403
 from pbcore.i18n import t
 from pbcore.models import *  # noqa: F401,F403
+from pbcore.spell_ui import SpellHighlighter
 
 
 class PwaImportDialog(Toplevel):
@@ -187,9 +188,9 @@ class HistoryDialog(Toplevel):
         entry = self.prompt.history[selection[0]]
         header = (
             f"{entry.get('name', '')}\n"
-            f"Status: {status_label(entry.get('status', ''))} | "
-            f"Model: {entry.get('model') or '—'} | "
-            f"Zapis: {format_date(entry.get('saved_at'))}\n\n"
+            + t('Status: ') + status_display(entry.get('status', ''))
+            + t(' | Model: ') + (entry.get('model') or '—')
+            + t(' | Zapis: ') + format_date(entry.get('saved_at')) + "\n\n"
         )
         self.preview_text.insert("1.0", header + (entry.get("content") or ""))
         self.preview_text.configure(state="disabled")
@@ -499,9 +500,10 @@ class PromptDialog(Toplevel):
         zastosowanie_options: list[str] | None = None,
         tag_options: list[str] | None = None,
         theme_getter=None,
+        store=None,
     ):
         super().__init__(parent)
-        self.title("Edytuj prompt" if prompt else "Nowy prompt")
+        self.title(t('Edytuj prompt') if prompt else t('Nowy prompt'))
         self.geometry("760x650")
         self.minsize(650, 540)
         self.result: Prompt | None = None
@@ -510,11 +512,13 @@ class PromptDialog(Toplevel):
         self.zastosowanie_options = zastosowanie_options or ZASTOSOWANIA_PRESET
         self.tag_options = tag_options or TAGS_PRESET
         self.theme_getter = theme_getter
+        self.store = store
+        self.spell = None
 
         self.name_var = StringVar(value=prompt.name if prompt else "")
-        initial_status = status_label(prompt.status) if prompt else STATUSES["nowy"]
+        initial_status = status_display(prompt.status) if prompt else status_display("nowy")
         self.status_var = StringVar(value=initial_status)
-        self.format_var = StringVar(value=prompt.format if prompt else "tekst")
+        self.format_var = StringVar(value=format_display(prompt.format if prompt else "tekst"))
         self.model_var = StringVar(value=prompt.model if prompt else "")
         self.zastosowanie_var = StringVar(value=prompt.zastosowanie if prompt else "")
         self.tags_var = StringVar(value=prompt.tags if prompt else "")
@@ -529,12 +533,12 @@ class PromptDialog(Toplevel):
         ttk.Entry(body, textvariable=self.name_var).grid(row=0, column=1, sticky="ew", pady=4)
 
         ttk.Label(body, text=t('Status')).grid(row=1, column=0, sticky=W, pady=4)
-        ttk.Combobox(body, textvariable=self.status_var, values=list(STATUSES.values()), state="readonly").grid(
+        ttk.Combobox(body, textvariable=self.status_var, values=status_display_values(), state="readonly").grid(
             row=1, column=1, sticky="ew", pady=4
         )
 
         ttk.Label(body, text=t('Format')).grid(row=2, column=0, sticky=W, pady=4)
-        ttk.Combobox(body, textvariable=self.format_var, values=FORMATS, state="readonly").grid(
+        ttk.Combobox(body, textvariable=self.format_var, values=format_display_values(), state="readonly").grid(
             row=2, column=1, sticky="ew", pady=4
         )
 
@@ -593,6 +597,7 @@ class PromptDialog(Toplevel):
             self.content_text.insert("1.0", prompt.content)
         if self.theme_getter:
             apply_text_theme(self.content_text, self.theme_getter())
+        self.spell = SpellHighlighter(self.content_text, self.store)
 
         buttons = ttk.Frame(body)
         buttons.grid(row=8, column=0, columnspan=2, sticky="e", pady=(14, 0))
@@ -634,8 +639,8 @@ class PromptDialog(Toplevel):
             candidate = {
                 "name": name,
                 "content": content,
-                "status": status_key_from_label(self.status_var.get().strip()),
-                "format": self.format_var.get(),
+                "status": status_key_from_display(self.status_var.get().strip()),
+                "format": format_from_display(self.format_var.get()),
                 "model": self.model_var.get().strip(),
                 "zastosowanie": self.zastosowanie_var.get().strip(),
                 "tags": self.tags_var.get().strip(),
@@ -646,8 +651,10 @@ class PromptDialog(Toplevel):
 
         prompt.name = name
         prompt.content = content
-        prompt.status = status_key_from_label(self.status_var.get().strip())
-        prompt.format = self.format_var.get()
+        # Z ekranu wraca etykieta (możliwe, że przetłumaczona) — w danych
+        # zapisujemy wartość kanoniczną, tę samą w każdym języku.
+        prompt.status = status_key_from_display(self.status_var.get().strip())
+        prompt.format = format_from_display(self.format_var.get())
         prompt.model = self.model_var.get().strip()
         prompt.zastosowanie = self.zastosowanie_var.get().strip()
         prompt.tags = self.tags_var.get().strip()

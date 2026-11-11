@@ -59,6 +59,19 @@ _EN: dict[str, str] = {
     "Język": "Language",
     "Nowy prompt": "New prompt",
     "Import CSV...": "Import CSV...",
+    "Import XLSX (Excel)...": "Import XLSX (Excel)...",
+    "Eksport XLSX (Excel)...": "Export XLSX (Excel)...",
+    "Import XLSX": "Import XLSX",
+    "Eksport XLSX": "Export XLSX",
+    "Import CSV, XLSX lub JSON": "Import CSV, XLSX or JSON",
+    "CSV, XLSX i JSON": "CSV, XLSX and JSON",
+    "Obsługiwane rozszerzenia: .csv, .xlsx, .json": "Supported extensions: .csv, .xlsx, .json",
+    "Rozpoznane kolumny: ": "Recognised columns: ",
+    "Kategorie: ": "Categories: ",
+    " promptów z XLSX.": " prompts from XLSX.",
+    "\n\nTak = dopisz\nNie = zastąp bibliotekę\nAnuluj": (
+        "\n\nYes = append\nNo = replace the library\nCancel"
+    ),
     "Import z PWA (przeglądarka)...": "Import from PWA (browser)...",
     "Instrukcja importu PWA": "PWA import guide",
     "Eksport CSV...": "Export CSV...",
@@ -290,6 +303,39 @@ _EN: dict[str, str] = {
     "Przywróć z JSON": "Restore from JSON",
     "CSV i JSON": "CSV and JSON",
     "Wszystkie pliki": "All files",
+    # Import kopii zapasowej
+    'Plik zawiera adres webhooka n8n:\n\n': 'The file contains an n8n webhook address:\n\n',
+    '\n\nPrompty wysyłane do n8n trafią pod ten adres.\nUstawić go?': '\n\nPrompts sent to n8n will go to this address.\nUse it?',
+    # Blok kopiowany do schowka / podglad historii
+    'Status: ': 'Status: ',
+    'Zastosowanie: ': 'Use case: ',
+    # Praca w tle
+    'Wczytuję arkusz…': 'Loading the spreadsheet…',
+    'Import przerwany.': 'Import stopped.',
+    'Operacja nie powiodła się.': 'The operation failed.',
+    # Nieudany zapis biblioteki
+    'Nie udało się zapisać biblioteki:\n\n': 'Could not save your library:\n\n',
+    '\n\nZmiana działa tylko do zamknięcia programu. Zwolnij miejsce na dysku lub zamknij program blokujący plik i zapisz ponownie.': '\n\nThe change lasts only until you close the app. Free up disk space or close the program locking the file, then save again.',
+    'BŁĄD: nie udało się zapisać biblioteki.': 'ERROR: the library was not saved.',
+    # Dziennik błędów
+    'Wystąpił nieoczekiwany błąd:\n\n': 'An unexpected error occurred:\n\n',
+    '\n\nSzczegóły zapisano w pliku:\n': '\n\nDetails were saved to:\n',
+    # Sprawdzanie pisowni (Hunspell)
+    'Język pisowni': 'Spelling language',
+    'Język pisowni…': 'Spelling language…',
+    'Wybierz język sprawdzania pisowni:': 'Choose the spell checking language:',
+    'Słowniki w formacie Hunspell (.dic + .aff), takie jak w LibreOffice.': 'Hunspell dictionaries (.dic + .aff), the same as in LibreOffice.',
+    'Zainstaluj słownik…': 'Install dictionary…',
+    'Zainstalowano słownik: ': 'Dictionary installed: ',
+    'Wybierz plik słownika (.dic)': 'Select a dictionary file (.dic)',
+    'Słownik Hunspell': 'Hunspell dictionary',
+    'Wybierz': 'Select',
+    '(bez sprawdzania)': '(no spell checking)',
+    '(brak propozycji)': '(no suggestions)',
+    'Dodaj do słownika': 'Add to dictionary',
+    'Ignoruj wszędzie': 'Ignore everywhere',
+    'Sprawdzanie pisowni: wyłącz': 'Spell checking: turn off',
+    'Sprawdzanie pisowni: włącz': 'Spell checking: turn on',
     "Brak poprawnych promptów w pliku.": "No valid prompts in the file.",
     "W kopii nie ma poprawnych promptów.": "The backup contains no valid prompts.",
     "Nie znaleziono poprawnych promptów w CSV.": "No valid prompts found in the CSV.",
@@ -574,6 +620,9 @@ _EN_VALUES: dict[str, str] = {
     "kod": "code",
     "zdjecie/screen": "image/screen",
     "Wszystkie": "All",
+    # Naglowki eksportu CSV/XLSX — nazwy dobrane tak, zeby import je rozpoznal
+    "Data Utworzenia": "Created",
+    "Treść Promptu": "Content",
     "Najnowsze": "Newest",
     "Najstarsze": "Oldest",
     "A -> Z": "A -> Z",
@@ -598,6 +647,16 @@ def t(text: str) -> str:
 def tv(value: str) -> str:
     """Tłumaczy wartość słownikową (status, format, język) — jak `t`."""
     return t(value)
+
+
+def value_aliases(value: str) -> tuple[str, ...]:
+    """Wszystkie znane zapisy wartości: kanoniczny i angielski.
+
+    Niezależne od bieżącego języka — plik wyeksportowany po angielsku musi
+    dać się zaimportować także w sesji polskiej i odwrotnie.
+    """
+    english = _EN_VALUES.get(value)
+    return (value, english) if english and english != value else (value,)
 
 
 def catalog_size() -> int:

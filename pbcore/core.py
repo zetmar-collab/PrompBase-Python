@@ -7,6 +7,7 @@ import platform
 import re
 import sys
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,7 +16,7 @@ if TYPE_CHECKING:  # tylko dla adnotacji — brak cyklu w czasie wykonania
     from pbcore.models import Prompt
 
 APP_NAME = "PrompBase"
-APP_VERSION = "2.9.2"
+APP_VERSION = "2.10.0"
 PLACEHOLDER_RE = re.compile(r"\[([A-Za-z0-9_]+)\]")
 APP_AUTHOR_URL = "https://github.com/zetmar-collab"
 APP_RELEASE_URL = "https://github.com/zetmar-collab/PrompBase-Python/releases"
@@ -88,35 +89,57 @@ DOCS_DIR = APP_DIR / "docs"
 DOC_PWA_IMPORT = DOCS_DIR / "PWA-IMPORT.md"
 DOC_QUICKSTART = DOCS_DIR / "QUICKSTART.md"
 
+# Motywy. Poza kolorami marki (fiolet) trzymamy tu tokeny potrzebne do
+# „płaskiego" wyglądu: `border` zastępuje trójwymiarowe krawędzie motywu clam,
+# `control_border` to krawędź pola tekstowego — musi mieć kontrast 3:1, bo to
+# ona pozwala rozpoznać kontrolkę (WCAG 1.4.11); `border` jest dekoracyjny.
+# `row_alt` daje delikatne pasy na liście, a `accent_text` to kolor napisu na
+# przycisku akcentowym (na jasnym fiolecie w ciemnych motywach czytelniejszy
+# jest ciemny tekst niż biały).
 THEMES = {
     "jasny": {
-        "bg": "#f5f6fb",
+        "bg": "#f4f5f9",
         "surface": "#ffffff",
-        "text": "#1f2430",
-        "muted": "#667085",
-        "accent": "#6557d2",
-        "select": "#e7e5ff",
+        "border": "#e2e4ee",
+        "control_border": "#7f8699",
+        "text": "#171a23",
+        "muted": "#5f6673",
+        "accent": "#5b4bd6",
+        "accent_hover": "#4a3cc4",
+        "accent_text": "#ffffff",
+        "select": "#eae7ff",
+        "row_alt": "#f2f3f9",
         "field": "#ffffff",
-        "search_hit": "#fff59d",
+        "search_hit": "#fff3a3",
     },
     "ciemny": {
-        "bg": "#11131a",
-        "surface": "#1b1f2a",
-        "text": "#f2f4f8",
-        "muted": "#a8b0c0",
-        "accent": "#8d7cff",
-        "select": "#2d3350",
-        "field": "#151923",
+        "bg": "#0f1117",
+        "surface": "#171a23",
+        "border": "#262b38",
+        "control_border": "#636f89",
+        "text": "#eef1f7",
+        "muted": "#98a1b3",
+        "accent": "#8a7bff",
+        "accent_hover": "#9c90ff",
+        "accent_text": "#10121a",
+        "select": "#2a2f4a",
+        "row_alt": "#1b1f2a",
+        "field": "#12151d",
         "search_hit": "#4a4520",
     },
     "grafit": {
-        "bg": "#1a1c22",
-        "surface": "#242830",
-        "text": "#eceff4",
-        "muted": "#9aa3b2",
+        "bg": "#1a1d24",
+        "surface": "#232730",
+        "border": "#333846",
+        "control_border": "#6e7890",
+        "text": "#e9edf4",
+        "muted": "#99a2b2",
         "accent": "#7c8cff",
-        "select": "#323848",
-        "field": "#1e2129",
+        "accent_hover": "#8f9cff",
+        "accent_text": "#12141a",
+        "select": "#303649",
+        "row_alt": "#262a34",
+        "field": "#1e222a",
         "search_hit": "#4a4520",
     },
 }
@@ -335,6 +358,40 @@ def app_data_dir() -> Path:
     return Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / APP_NAME
 
 
+ERROR_LOG_MAX_BYTES = 512 * 1024
+
+
+def error_log_path() -> Path:
+    return app_data_dir() / "error.log"
+
+
+def log_exception(exc_type, exc, tb) -> Path | None:
+    """Dopisuje wyjątek do pliku dziennika. Zwraca ścieżkę albo None.
+
+    Aplikacja jest budowana jako okienkowa (console=False), więc `stderr`
+    donikąd nie prowadzi — bez tego dziennika każda awaria była niewidoczna
+    i nie dało się zdiagnozować zgłoszenia użytkownika.
+
+    Sama nigdy nie rzuca: zawodzi po cichu, bo wywołujemy ją już w trakcie
+    obsługi innego błędu.
+    """
+    try:
+        path = error_log_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Prosta rotacja — dziennik nie może rosnąć w nieskończoność.
+        try:
+            if path.stat().st_size > ERROR_LOG_MAX_BYTES:
+                path.replace(path.with_suffix(".log.1"))
+        except OSError:
+            pass
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(f"\n--- {datetime.now().isoformat()} | {APP_NAME} {APP_VERSION} ---\n")
+            traceback.print_exception(exc_type, exc, tb, file=fh)
+        return path
+    except Exception:  # noqa: BLE001 - dziennik nie może wywrócić aplikacji
+        return None
+
+
 def now_ms() -> int:
     return int(time.time() * 1000)
 
@@ -401,8 +458,12 @@ def apply_widget_theme(widget, colors: dict) -> None:
                 "relief": "flat",
                 "borderwidth": 1,
                 "highlightthickness": 1,
-                "highlightbackground": colors["muted"],
+                # Cienka ramka w kolorze obramowania, akcent dopiero po
+                # wejściu w pole — bez tego „szara obwódka" dominuje widok.
+                "highlightbackground": colors.get("control_border", colors["muted"]),
                 "highlightcolor": colors["accent"],
+                "padx": 8,
+                "pady": 6,
             }
         )
     widget.configure(**options)
@@ -498,6 +559,76 @@ def status_label(status_key: str) -> str:
 
 def status_key_from_label(label: str) -> str:
     return STATUS_FROM_LABEL.get(label, label)
+
+
+# --- etykiety wartości dla interfejsu --------------------------------------
+#
+# Tłumaczymy wyłącznie to, co widać na ekranie. W pliku `promptbase.json`
+# i w ładunku wysyłanym do n8n zostają wartości kanoniczne (polskie), bo
+# zmiana języka interfejsu nie może zmienić kontraktu danych ani zepsuć
+# bibliotek zapisanych wcześniej. Funkcje `*_from_display` przyjmują zarówno
+# etykietę przetłumaczoną, jak i kanoniczną — dzięki temu starsze dane
+# i pliki importowane z zewnątrz nadal się dopasowują.
+
+ALL_FILTER = "Wszystkie"
+
+
+def _translate_value(value: str) -> str:
+    from pbcore import i18n
+
+    return i18n.t(value)
+
+
+def all_filter_label() -> str:
+    """Etykieta „wszystkie" w filtrach (sentinel w warstwie widoku)."""
+    return _translate_value(ALL_FILTER)
+
+
+def status_display(key: str) -> str:
+    return _translate_value(STATUSES.get(key, key))
+
+
+def status_display_values() -> list[str]:
+    return [status_display(key) for key in STATUSES]
+
+
+def status_key_from_display(label: str) -> str:
+    from pbcore import i18n
+
+    for key, canonical in STATUSES.items():
+        if label == key or label in i18n.value_aliases(canonical):
+            return key
+    return status_key_from_label(label)
+
+
+def format_display(value: str) -> str:
+    return _translate_value(value) if value in FORMATS else value
+
+
+def format_display_values() -> list[str]:
+    return [format_display(value) for value in FORMATS]
+
+
+def format_from_display(label: str) -> str:
+    from pbcore import i18n
+
+    for value in FORMATS:
+        if label in i18n.value_aliases(value):
+            return value
+    return label
+
+
+def sort_display_values() -> list[str]:
+    return [_translate_value(label) for label in SORT_OPTIONS]
+
+
+def sort_key_from_display(label: str) -> str:
+    from pbcore import i18n
+
+    for canonical, key in SORT_OPTIONS.items():
+        if label in i18n.value_aliases(canonical):
+            return key
+    return "newest"
 
 
 def merge_model_options(*sources: list[str]) -> list[str]:

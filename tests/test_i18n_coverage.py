@@ -18,12 +18,13 @@ from pathlib import Path
 from pbcore import i18n
 
 ROOT = Path(__file__).resolve().parent.parent
-FILES = [
-    "pbcore/app.py",
-    "pbcore/dialogs.py",
-    "pbcore/ai_dialogs.py",
-    "pbcore/models.py",
-]
+# Lista wykrywana automatycznie — przy sztywnym spisie nowy moduł UI
+# (np. spell_ui.py) wchodził do programu z nieprzetłumaczonymi napisami,
+# a test i tak świecił na zielono.
+FILES = sorted(
+    str(path.relative_to(ROOT)).replace("\\", "/")
+    for path in (ROOT / "pbcore").glob("*.py")
+)
 
 
 def _literal_t_calls(path: Path) -> set[str]:

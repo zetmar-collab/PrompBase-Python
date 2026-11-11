@@ -23,7 +23,7 @@ from pbcore import i18n
 def _isolated_appdata(monkeypatch, tmp_path):
     """Izolowany %APPDATA% — nie dotykamy prawdziwej biblioteki użytkownika."""
     appdata = tmp_path / "AppData"
-    appdata.mkdir()
+    appdata.mkdir(exist_ok=True)  # conftest tworzy ten katalog wcześniej
     monkeypatch.setenv("APPDATA", str(appdata))
     monkeypatch.setattr(messagebox, "showinfo", lambda *a, **k: None)
     yield appdata

@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.9.2-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.10.0-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
@@ -68,7 +68,7 @@ Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
-Wynik: `dist\PrompBase-2.9.2-Setup.exe` — instalacja per-user (bez administratora),
+Wynik: `dist\PrompBase-2.10.0-Setup.exe` — instalacja per-user (bez administratora),
 skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
 
 ### Pakiet MSIX (Microsoft Store)
@@ -80,7 +80,7 @@ zwykle zainstalowany z Visual Studio lub [samodzielnie](https://aka.ms/windowssd
 powershell -ExecutionPolicy Bypass -File scripts\build_msix.ps1
 ```
 
-Wynik: `dist\PrompBase-2.9.2.msix` — wyślij ten plik w
+Wynik: `dist\PrompBase-2.10.0.msix` — wyślij ten plik w
 [Partner Center](https://partner.microsoft.com/dashboard) (Microsoft Store
 podpisuje paczkę ponownie przy publikacji, więc lokalny podpis nie jest
 wymagany). Tożsamość pakietu: `MarekZettel-zetmar.PrompBase`
@@ -101,7 +101,54 @@ python -m pytest
 python -m ruff check
 ```
 
-## Funkcje (v2.9.2)
+## Funkcje (v2.10.0)
+
+### Import i eksport XLSX (Excel)
+
+- **Plik → Import XLSX (Excel)…** wczytuje arkusz z promptami razem
+  z kategoriami; **Plik → Eksport XLSX (Excel)…** zapisuje całą bibliotekę
+- Nagłówki rozpoznawane po nazwie (PL i EN): `Prompt`/`Treść`/`Content`,
+  `Kategoria`/`Zastosowanie`, `Styl`/`Tagi`, `Ikona`, `Numer`, `ID`, `Model`…
+  Kolejność kolumn nie ma znaczenia
+- Gdy arkusz nie ma kolumny „Nazwa", nazwa promptu jest składana z ikony,
+  kategorii i numeru (`🌸 Anime – postacie #1`), żeby lista była czytelna
+- Przed importem aplikacja pokazuje rozpoznane kolumny i liczbę kategorii
+- Czytnik i zapis są **w czystej bibliotece standardowej** (XLSX to ZIP + XML),
+  bez `openpyxl` — aplikacja nadal nie ma zależności w czasie działania
+- Bezpieczeństwo: pliki z deklaracją DTD są odrzucane (ochrona przed bombą
+  encyjną, na którą `ElementTree` jest podatny), obowiązują też limity
+  rozmiaru po dekompresji i liczby wierszy (ochrona przed zip-bombą)
+
+### Sprawdzanie pisowni
+
+- Błędy podkreślane na czerwono w oknie tworzenia i edycji promptu,
+  jak w LibreOffice; **prawy przycisk myszy** daje propozycje poprawek,
+  „Dodaj do słownika" i „Ignoruj wszędzie"
+- Czyta **słowniki Hunspell** (`.dic` + `.aff`) — te same, których używają
+  LibreOffice, Firefox i Thunderbird. Polski i angielski działają od razu,
+  jeśli w systemie są już zainstalowane słowniki
+- **Inne języki**: prawy przycisk → „Język pisowni…" → „Zainstaluj słownik…"
+  i wskazanie pobranego pliku `.dic`. Słowniki nie są dołączane do repozytorium
+  ani do instalatora (licencje) — są wyszukiwane w systemie lub dodawane
+  przez użytkownika do `%APPDATA%\PrompBase\dictionaries\`
+- Pomijane są `[ZMIENNE]`, adresy URL i fragmenty w backtickach — nie są
+  podkreślane jako literówki
+- Słownik użytkownika (`Dodaj do słownika`) zapisywany trwale;
+  wybór języka i włącznik zapamiętywane w `promptbase.json`
+- Kodowanie słownika czytane z nagłówka `SET` — prawdziwe słowniki **nie są**
+  w UTF-8 (polski to ISO-8859-2), bez tego polskie znaki byłyby zniekształcone
+
+### Odświeżony interfejs
+
+- Płaskie kontrolki zamiast trójwymiarowych fazek motywu `clam`;
+  rolę krawędzi przejęły włosowe ramki, panele stoją na jasnych „kartach"
+- Spójna skala typograficzna (Segoe UI Variable, gdy jest w systemie)
+- Wyższe wiersze listy i delikatne pasy co drugi wiersz
+- Akcje w panelu podglądu ułożone 4×2 — wcześniej osiem przycisków w jednym
+  rzędzie nie mieściło się i Tk przycinał napisy („Duplik", „Histori")
+- Szersze okno startowe i kolumny dzielące się dostępnym miejscem, dzięki
+  czemu „Zastosowanie" i „Format" nie są ucinane
+- Smukłe paski przewijania, wyraźny stan po najechaniu i fokus na akcencie
 
 ### Zgodność z Microsoft Store
 

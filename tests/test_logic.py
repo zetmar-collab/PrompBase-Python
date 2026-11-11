@@ -132,6 +132,29 @@ def test_prompt_roundtrip_to_dict():
     assert (p2.name, p2.content, p2.model, p2.tags) == ("N", "C", "GPT-5.5", "a, b")
 
 
+@pytest.mark.parametrize(
+    "created",
+    ["2026-01-01", {"rok": 2026}, [], "", "nie-liczba", None],
+)
+def test_prompt_from_dict_survives_broken_created(created):
+    """Regresja: `created` zapisane inaczej niż liczbą wywracało cały import.
+
+    int("2026-01-01") rzuca ValueError, a żadna ze ścieżek importu tego nie
+    łapała — w wersji okienkowej import po prostu cicho nic nie robił.
+    """
+    p = pb.Prompt.from_dict({"name": "N", "content": "C", "created": created})
+    assert isinstance(p.created, int)
+    assert p.created > 0
+
+
+def test_prompt_from_dict_keeps_valid_created():
+    p = pb.Prompt.from_dict({"name": "N", "content": "C", "created": 1757000000000})
+    assert p.created == 1757000000000
+    # Liczba zapisana tekstem lub zmiennoprzecinkowo nadal ma być honorowana.
+    assert pb.Prompt.from_dict({"name": "N", "content": "C", "created": "1757000000000"}).created == 1757000000000
+    assert pb.Prompt.from_dict({"name": "N", "content": "C", "created": 1757000000000.0}).created == 1757000000000
+
+
 def test_prompt_history_capped():
     hist = [{"content": str(i)} for i in range(20)]
     p = pb.Prompt.from_dict({"name": "N", "content": "C", "history": hist})
