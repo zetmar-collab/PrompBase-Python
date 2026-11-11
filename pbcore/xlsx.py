@@ -18,11 +18,11 @@ niezaufane):
 
 from __future__ import annotations
 
-import re
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree as ET
+from xml.parsers import expat
 
 NS_MAIN = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -35,8 +35,12 @@ MAX_ROWS = 100_000
 # uszkodzony lub spreparowany plik — bez tego limitu `read_rows` próbowało
 # dopisać miliardy pustych komórek i aplikacja zawieszała się na stałe.
 MAX_COLUMNS = 16_384
+# Limit wszystkich komórek w arkuszu LICZONY RAZEM Z DOPEŁNIENIEM. Sam limit
+# wierszy nie wystarcza: komórka w kolumnie XFD dopełnia 16 383 puste komórki,
+# więc plik 1,4 MB z 20 tys. wierszy zajmował ok. 440 MB (przy 100 tys. wierszy
+# ok. 2,2 GB). 5 mln komórek to ponad 50 razy więcej niż zwykła baza promptów.
+MAX_CELLS = 5_000_000
 
-_DTD_RE = re.compile(rb"<!\s*(DOCTYPE|ENTITY)", re.IGNORECASE)
 
 
 class XlsxError(Exception):
@@ -46,13 +50,51 @@ class XlsxError(Exception):
 # --- czytanie --------------------------------------------------------------
 
 
-def _safe_xml(data: bytes) -> ET.Element:
-    """Parsuje XML po odrzuceniu deklaracji DTD (ochrona przed billion laughs)."""
-    if _DTD_RE.search(data):
+class _DtdFound(Exception):
+    """Dokument zawiera deklarację DOCTYPE."""
+
+
+class _RootReached(Exception):
+    """Doszliśmy do elementu głównego bez DOCTYPE — dalej nie ma po co czytać."""
+
+
+def _reject_dtd(data: bytes) -> None:
+    """Odrzuca dokument z deklaracją DTD, patrząc na niego jak parser.
+
+    Wcześniej filtr szukał w bajtach napisu `<!DOCTYPE`, ale w UTF-16 znaki są
+    poprzeplatane zerami i takie dokumenty go omijały, a ElementTree nadal
+    rozwijał encje (billion laughs). Tu używamy tego samego parsera expat, który
+    stoi pod ElementTree, więc dekodowanie jest identyczne dla każdego kodowania.
+
+    DOCTYPE musi stać przed elementem głównym, więc przerywamy odczyt na
+    pierwszym elemencie — zwykły arkusz nie jest przez to parsowany dwa razy.
+    """
+    parser = expat.ParserCreate()
+
+    def on_doctype(*_args):
+        raise _DtdFound
+
+    def on_root(*_args):
+        raise _RootReached
+
+    parser.StartDoctypeDeclHandler = on_doctype
+    parser.StartElementHandler = on_root
+    try:
+        parser.Parse(data, True)
+    except _DtdFound:
         raise XlsxError(
             "Plik zawiera deklarację DTD, której poprawne arkusze nie używają. "
             "Odrzucono ze względów bezpieczeństwa."
-        )
+        ) from None
+    except _RootReached:
+        return
+    except expat.ExpatError as exc:
+        raise XlsxError(f"Uszkodzony XML w pliku XLSX: {exc}") from exc
+
+
+def _safe_xml(data: bytes) -> ET.Element:
+    """Parsuje XML po odrzuceniu deklaracji DTD (ochrona przed billion laughs)."""
+    _reject_dtd(data)
     try:
         return ET.fromstring(data)
     except ET.ParseError as exc:
@@ -157,6 +199,7 @@ def read_rows(path: Path | str) -> list[list[str]]:
             sheet = _safe_xml(_read_member(zf, _first_sheet_path(zf)))
 
             rows: list[list[str]] = []
+            total_cells = 0
             for row in sheet.iter(f"{{{NS_MAIN}}}row"):
                 if len(rows) >= MAX_ROWS:
                     break
@@ -167,6 +210,13 @@ def read_rows(path: Path | str) -> list[list[str]]:
                     # części literowej — wtedy pozycja wynika z kolejności.
                     has_letters = any(ch.isalpha() for ch in ref)
                     idx = _column_index(ref) if has_letters else len(cells)
+                    # Dopełnienie liczy się do limitu — inaczej jedna komórka
+                    # w kolumnie XFD mnożyłaby pamięć w każdym wierszu.
+                    total_cells += max(idx + 1 - len(cells), 1)
+                    if total_cells > MAX_CELLS:
+                        raise XlsxError(
+                            "Arkusz jest zbyt duży (za dużo komórek) — import przerwano."
+                        )
                     while len(cells) < idx:
                         cells.append("")
                     cells.append(_cell_value(cell, shared))

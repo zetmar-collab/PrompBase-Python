@@ -150,7 +150,9 @@ class ImportExportMixin:
         if mode is False:
             self.store.prompts = valid
             if dialog.n8n_url:
-                self.store.n8n_url = dialog.n8n_url
+                # Adres z cudzego pliku ustawiamy dopiero po potwierdzeniu —
+                # tak samo jak przy imporcie kopii zapasowej.
+                self.store.n8n_url = self._confirm_imported_n8n_url(dialog.n8n_url)
             pwa_theme = dialog.theme.lower()
             if pwa_theme in ("dark", "ciemny"):
                 self.store.theme = "ciemny"
@@ -171,7 +173,7 @@ class ImportExportMixin:
             ]
             self.store.prompts = fresh + self.store.prompts
             if dialog.n8n_url and not self.store.n8n_url:
-                self.store.n8n_url = dialog.n8n_url
+                self.store.n8n_url = self._confirm_imported_n8n_url(dialog.n8n_url)
         self.save_store()
         self.refresh_all()
         self.set_status(f"{t('Zaimportowano ')}{len(valid)}{t(' promptów z PWA.')}")

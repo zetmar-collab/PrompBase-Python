@@ -267,3 +267,99 @@ def test_falls_back_when_relationships_are_broken(tmp_path):
     path = _multi_sheet_xlsx(tmp_path / "zepsute.xlsx", first_target="worksheets/brak.xml")
     rows = xlsx.read_rows(path)
     assert rows[1][0] == "NIEWLASCIWY"  # sheet1.xml jako awaryjny wybór
+
+
+# --- obejścia znalezione przez przegląd bezpieczeństwa ----------------------
+
+_BOMB = (
+    '<!DOCTYPE lolz [<!ENTITY lol "lol">'
+    '<!ENTITY l2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
+    '<!ENTITY l3 "&l2;&l2;&l2;&l2;&l2;&l2;&l2;&l2;&l2;&l2;">]>'
+    '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+    '<sheetData><row><c t="inlineStr"><is><t>&l3;</t></is></c></row></sheetData></worksheet>'
+)
+
+
+def _with_sheet(tmp_path, sheet_bytes, name):
+    source = _make_xlsx(tmp_path, ["A"], [["1"]], name=f"src-{name}")
+    out = tmp_path / name
+    with zipfile.ZipFile(source) as src, zipfile.ZipFile(out, "w") as dst:
+        for info in src.infolist():
+            data = src.read(info.filename)
+            if info.filename.startswith("xl/worksheets/"):
+                data = sheet_bytes
+            dst.writestr(info.filename, data)
+    return out
+
+
+@pytest.mark.parametrize(
+    "label, payload",
+    [
+        ("utf-8", _BOMB.encode("utf-8")),
+        ("utf-8-bom", b"\xef\xbb\xbf" + _BOMB.encode("utf-8")),
+        ("utf-16-le z BOM", b"\xff\xfe" + _BOMB.encode("utf-16-le")),
+        ("utf-16-be z BOM", b"\xfe\xff" + _BOMB.encode("utf-16-be")),
+        (
+            "utf-16 z deklaracją",
+            ('<?xml version="1.0" encoding="UTF-16"?>' + _BOMB).encode("utf-16"),
+        ),
+        (
+            "latin-1",
+            ('<?xml version="1.0" encoding="ISO-8859-1"?>' + _BOMB).encode("latin-1"),
+        ),
+    ],
+)
+def test_dtd_is_rejected_in_every_encoding(tmp_path, label, payload):
+    """Regresja: filtr szukał bajtów „<!DOCTYPE", więc UTF-16 go omijał.
+
+    W UTF-16 znaki są poprzeplatane zerami i wyrażenie regularne nic nie
+    znajdowało, a parser nadal rozwijał encje. Odrzucenie musi działać na
+    poziomie parsera, który widzi dokument tak samo jak ElementTree.
+    """
+    path = _with_sheet(tmp_path, payload, "enc.xlsx")
+    with pytest.raises(xlsx.XlsxError):
+        xlsx.read_rows(path)
+
+
+def test_utf16_sheet_without_dtd_still_reads(tmp_path):
+    """Poprawny arkusz w UTF-16 (Excel go nie zapisuje, ale to legalny XML)."""
+    sheet = (
+        '<?xml version="1.0" encoding="UTF-16"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Prompt</t></is></c></row>'
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>zażółć</t></is></c></row>'
+        "</sheetData></worksheet>"
+    ).encode("utf-16")
+    rows = xlsx.read_rows(_with_sheet(tmp_path, sheet, "u16ok.xlsx"))
+    assert rows[1][0] == "zażółć"
+
+
+def test_comment_mentioning_doctype_is_not_a_false_positive(tmp_path):
+    """Sam tekst „<!DOCTYPE" w komórce nie jest deklaracją DTD."""
+    rows = [["Prompt"], ["napisz o <!DOCTYPE html> i <!ENTITY>"]]
+    path = _make_xlsx(tmp_path, rows[0], rows[1:], name="tekst.xlsx")
+    assert xlsx.read_rows(path)[1][0] == "napisz o <!DOCTYPE html> i <!ENTITY>"
+
+
+def test_padding_cannot_amplify_memory(tmp_path, monkeypatch):
+    """Regresja: kolumna XFD w każdym wierszu dopełniała 16 383 pustych komórek.
+
+    Plik 1,4 MB z 20 tys. wierszy zajmował ok. 440 MB, a przy limicie
+    100 tys. wierszy ok. 2,2 GB. Limit komórek liczy też dopełnienie.
+    """
+    monkeypatch.setattr(xlsx, "MAX_CELLS", 100_000)
+    body = "".join(
+        f'<row r="{i}"><c r="XFD{i}" t="inlineStr"><is><t>x</t></is></c></row>'
+        for i in range(1, 50)
+    )
+    sheet = (
+        '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/'
+        f'spreadsheetml/2006/main"><sheetData>{body}</sheetData></worksheet>'
+    ).encode()
+    with pytest.raises(xlsx.XlsxError):
+        xlsx.read_rows(_with_sheet(tmp_path, sheet, "amp.xlsx"))
+
+
+def test_normal_sheet_is_far_below_the_cell_limit():
+    """Limit nie może ograniczać zwykłych arkuszy — typowa baza to kilka kolumn."""
+    assert xlsx.MAX_CELLS >= xlsx.MAX_ROWS * 20
