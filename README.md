@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build_windows.ps1
 Wynik:
 
 - `dist\PrompBase.exe`
-- `dist\PrompBase-2.10.0-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
+- `dist\PrompBase-2.10.1-Windows.zip` — EXE + landing + docs + `models.json` (do GitHub Releases)
 
 Po rozpakowaniu ZIP: przeczytaj `START.txt`, opcjonalnie `Otworz-landing.bat`.
 
@@ -68,7 +68,7 @@ Po zbudowaniu EXE zbuduj instalator (wymaga [Inno Setup](https://jrsoftware.org/
 powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 
-Wynik: `dist\PrompBase-2.10.0-Setup.exe` — instalacja per-user (bez administratora),
+Wynik: `dist\PrompBase-2.10.1-Setup.exe` — instalacja per-user (bez administratora),
 skróty w menu Start i opcjonalnie na pulpicie, deinstalator.
 
 ### Pakiet MSIX (Microsoft Store)
@@ -80,7 +80,7 @@ zwykle zainstalowany z Visual Studio lub [samodzielnie](https://aka.ms/windowssd
 powershell -ExecutionPolicy Bypass -File scripts\build_msix.ps1
 ```
 
-Wynik: `dist\PrompBase-2.10.0.msix` — wyślij ten plik w
+Wynik: `dist\PrompBase-2.10.1.msix` — wyślij ten plik w
 [Partner Center](https://partner.microsoft.com/dashboard) (Microsoft Store
 podpisuje paczkę ponownie przy publikacji, więc lokalny podpis nie jest
 wymagany). Tożsamość pakietu: `MarekZettel-zetmar.PrompBase`

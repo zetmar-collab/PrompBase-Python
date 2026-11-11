@@ -3,7 +3,7 @@
 ; Wersja przekazywana z zewnątrz: ISCC /DAppVersion=2.8 installer\PrompBase.iss
 
 #ifndef AppVersion
-  #define AppVersion "2.10.0"
+  #define AppVersion "2.10.1"
 #endif
 
 #define AppName "PrompBase"
